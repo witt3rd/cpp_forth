@@ -5,7 +5,9 @@
 #include <fstream>
 #include <ios>
 #include <iostream>
+#include <iterator>
 #include <map>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -142,9 +144,32 @@ void compile(std::vector<op> program, std::string& output_path) {
     output.close();
 }
 
-std::vector<op> load_program(const std::string_view& input_file_path) {
-    std::vector<op> program{push(42), push(27), plus(), dump(),
-                            push(500), push(80), minus(), dump()};
+op parse_tok(const std::string& tok) {
+    if (tok.compare("+") == 0) {
+        return plus();
+    } else if (tok.compare("-") == 0) {
+        return minus();
+    } else if (tok.compare(".") == 0) {
+        return dump();
+    }
+    return push(std::stoi(tok));
+}
+
+std::vector<op> load_program(const std::string& input_file_path) {
+    std::ifstream input(input_file_path);
+    if (!input.is_open()) {
+        std::cerr << "Unable to open input file" << std::endl;
+        std::exit(1);
+    }
+    std::vector<std::string> tokens{std::istream_iterator<std::string>{input},
+                                    std::istream_iterator<std::string>{}};
+    input.close();
+
+    std::vector<op> program;
+    program.reserve(tokens.size());
+    for (auto& tok : tokens) {
+        program.push_back(parse_tok(tok));
+    }
 
     return program;
 }
@@ -174,7 +199,7 @@ int main(int argc, char** argv) {
     }
     const std::string_view input_file_path{argv[cur_arg++]};
 
-    const std::vector<op> input_program = load_program(input_file_path);
+    const std::vector<op> input_program = load_program(std::string{input_file_path});
 
     if (subcommand == "sim") {
         simulate(input_program);
