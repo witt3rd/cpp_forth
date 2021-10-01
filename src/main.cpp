@@ -1,10 +1,12 @@
 #include "command.hpp"
+#include <filesystem>
 #include <fmt/core.h>
 #include <fmt/format.h>
 #include <fstream>
 #include <ios>
 #include <iostream>
 #include <map>
+#include <string_view>
 #include <vector>
 
 enum class op_t { push,
@@ -67,7 +69,7 @@ void simulate(std::vector<op> program) {
     }
 }
 
-void compile(std::vector<op> program, std::string output_path) {
+void compile(std::vector<op> program, std::string& output_path) {
     std::ofstream output(output_path);
     output << "segment .text" << std::endl;
 
@@ -140,8 +142,15 @@ void compile(std::vector<op> program, std::string output_path) {
     output.close();
 }
 
-[[noreturn]] void usage() {
-    std::cout << "Usage: forth++ <SUBCOMMAND> [ARGS]" << std::endl;
+std::vector<op> load_program(const std::string_view& input_file_path) {
+    std::vector<op> program{push(42), push(27), plus(), dump(),
+                            push(500), push(80), minus(), dump()};
+
+    return program;
+}
+
+[[noreturn]] void usage(const std::string_view& forth_name) {
+    std::cout << fmt::format("Usage: {} <SUBCOMMAND> <INPUT FILE PATH> [ARGS]", forth_name) << std::endl;
     std::cout << "SUBCOMMANDS: " << std::endl;
     std::cout << "    sim      Simulate the program" << std::endl;
     std::cout << "    com      Compile the program" << std::endl;
@@ -150,33 +159,53 @@ void compile(std::vector<op> program, std::string output_path) {
 
 int main(int argc, char** argv) {
 
-    if (argc < 2) {
+    auto cur_arg{0};
+    const std::string_view forth_name{argv[cur_arg++]};
+
+    if (argc <= cur_arg) {
         std::cerr << ">>> Missing subcommand" << std::endl;
-        usage();
+        usage(forth_name);
     }
+    const std::string_view subcommand{argv[cur_arg++]};
 
-    std::vector<op> program{push(42), push(27), plus(), dump(),
-                            push(500), push(80), minus(), dump()};
+    if (argc <= cur_arg) {
+        std::cerr << ">>> Missing input file path" << std::endl;
+        usage(forth_name);
+    }
+    const std::string_view input_file_path{argv[cur_arg++]};
 
-    std::string subcommand{argv[1]};
+    const std::vector<op> input_program = load_program(input_file_path);
+
     if (subcommand == "sim") {
-        simulate(program);
+        simulate(input_program);
     } else if (subcommand == "com") {
-        compile(program, "output.asm");
-        auto res = raymii::Command::exec("nasm -felf64 output.asm");
+        std::filesystem::path p = input_file_path;
+        p.replace_extension("");
+        const std::string_view output_file_path{p.string()};
+
+        // assemble
+        auto assembler_file_path = fmt::format("{}.asm", output_file_path);
+        compile(input_program, assembler_file_path);
+        auto assembler_command = fmt::format("nasm -felf64 {}", assembler_file_path);
+        std::cout << assembler_command << std::endl;
+        auto res = raymii::Command::exec(assembler_command);
         if (res.exitstatus != 0) {
             std::cout << fmt::format("nasm exited with {}: {}", res.exitstatus, res.output) << std::endl;
             return res.exitstatus;
         }
-        res = raymii::Command::exec("ld -o output output.o");
+
+        // link
+        auto assembler_output_file_path = fmt::format("{}.o", output_file_path);
+        auto linker_command             = fmt::format("ld -o {} {}", output_file_path, assembler_output_file_path);
+        std::cout << linker_command << std::endl;
+        res = raymii::Command::exec(linker_command);
         if (res.exitstatus != 0) {
             std::cout << fmt::format("ld exited with {}: {}", res.exitstatus, res.output) << std::endl;
             return res.exitstatus;
         }
-        std::cout << "Go forth!" << std::endl;
     } else {
         std::cerr << fmt::format(">>> Unknown subcommand: {}", subcommand) << std::endl;
-        usage();
+        usage(forth_name);
     }
 
     return 0;
