@@ -1,4 +1,6 @@
 #include "command.hpp"
+#include <cctype>
+#include <cstdint>
 #include <filesystem>
 #include <fmt/core.h>
 #include <fmt/format.h>
@@ -8,7 +10,7 @@
 #include <iterator>
 #include <map>
 #include <string>
-#include <string_view>
+//#include <string_view>
 #include <vector>
 
 enum class op_t { push,
@@ -29,6 +31,13 @@ struct op {
 void dump(op o) {
     std::cout << fmt::format("{} {}", op_t_names[o.type], o.arg) << std::endl;
 }
+
+struct token {
+    std::string file_path;
+    uint64_t row;
+    uint64_t col;
+    std::string word;
+};
 
 op push(uint64_t x) { return op{op_t::push, x}; }
 op plus() { return op{op_t::plus}; }
@@ -144,31 +153,77 @@ void compile(std::vector<op> program, std::string& output_path) {
     output.close();
 }
 
-op parse_tok(const std::string& tok) {
-    if (tok.compare("+") == 0) {
+op parse_word(const token& tok) {
+    if (tok.word.compare("+") == 0) {
         return plus();
-    } else if (tok.compare("-") == 0) {
+    } else if (tok.word.compare("-") == 0) {
         return minus();
-    } else if (tok.compare(".") == 0) {
+    } else if (tok.word.compare(".") == 0) {
         return dump();
     }
-    return push(std::stoi(tok));
+    return push(std::stoi(tok.word));
 }
 
-std::vector<op> load_program(const std::string& input_file_path) {
-    std::ifstream input(input_file_path);
-    if (!input.is_open()) {
+std::vector<token> lex_line(const std::string& file_path, const std::string& line, const uint64_t row) {
+    std::vector<token> tokens;
+    uint64_t col{0};
+    bool is_word{false};
+    token cur_token{.file_path = file_path, .row = row};
+
+    for (auto c : line) {
+        if (std::isspace(c)) {
+            if (is_word) {
+                tokens.push_back(cur_token);
+                is_word = false;
+            }
+        } else {
+            if (is_word) {
+                cur_token.word += c;
+            } else {
+                cur_token.col  = col;
+                cur_token.word = c;
+                is_word        = true;
+            }
+        }
+        col++;
+    }
+    if (is_word) {
+        tokens.push_back(cur_token);
+    }
+    return tokens;
+}
+
+std::vector<token> lex_file(const std::string& file_path) {
+    std::ifstream f(file_path);
+    if (!f.is_open()) {
         std::cerr << "Unable to open input file" << std::endl;
         std::exit(1);
     }
-    std::vector<std::string> tokens{std::istream_iterator<std::string>{input},
-                                    std::istream_iterator<std::string>{}};
-    input.close();
+
+    std::vector<token> tokens;
+    std::string line;
+    uint64_t row{0};
+
+    while (std::getline(f, line)) {
+        auto line_tokens = lex_line(file_path, line, row);
+        tokens.insert(tokens.cend(), line_tokens.cbegin(), line_tokens.cend());
+        row++;
+    }
+
+    f.close();
+
+    return tokens;
+}
+
+std::vector<op> load_program_from_file(const std::string& file_path) {
+
+    auto tokens{lex_file(file_path)};
 
     std::vector<op> program;
     program.reserve(tokens.size());
     for (auto& tok : tokens) {
-        program.push_back(parse_tok(tok));
+        std::cout << fmt::format("{}({:03},{:03}): {}", tok.file_path, tok.row, tok.col, tok.word) << std::endl;
+        program.push_back(parse_word(tok));
     }
 
     return program;
@@ -185,21 +240,21 @@ std::vector<op> load_program(const std::string& input_file_path) {
 int main(int argc, char** argv) {
 
     auto cur_arg{0};
-    const std::string_view forth_name{argv[cur_arg++]};
+    const std::string forth_name{argv[cur_arg++]};
 
     if (argc <= cur_arg) {
         std::cerr << ">>> Missing subcommand" << std::endl;
         usage(forth_name);
     }
-    const std::string_view subcommand{argv[cur_arg++]};
+    const std::string subcommand{argv[cur_arg++]};
 
     if (argc <= cur_arg) {
         std::cerr << ">>> Missing input file path" << std::endl;
         usage(forth_name);
     }
-    const std::string_view input_file_path{argv[cur_arg++]};
+    const std::string input_file_path{argv[cur_arg++]};
 
-    const std::vector<op> input_program = load_program(std::string{input_file_path});
+    const std::vector<op> input_program = load_program_from_file(std::string{input_file_path});
 
     if (subcommand == "sim") {
         simulate(input_program);
