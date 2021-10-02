@@ -187,19 +187,18 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    ;; -- if --" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    test rax, rax" << std::endl;
-                output << "    jz end_" << o.arg << std::endl;
+                output << "    jz addr_" << o.arg << std::endl;
                 break;
             }
             case op_t::elze: {
                 output << "    ;; -- else --" << std::endl;
-                output << "    pop rax" << std::endl;
-                output << "    test rax, rax" << std::endl;
-                output << "    jz end_" << o.arg << std::endl;
+                output << "    jmp addr_" << o.arg << std::endl;
+                output << "addr_" << ip << ":" << std::endl;
                 break;
             }
             case op_t::end: {
                 output << "    ;; -- end --" << std::endl;
-                output << "end_" << ip << ":" << std::endl;
+                output << "addr_" << ip << ":" << std::endl;
                 break;
             }
             case op_t::dump:
