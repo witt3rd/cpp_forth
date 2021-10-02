@@ -18,6 +18,8 @@ enum class op_t { push,
                   plus,
                   minus,
                   equal,
+                  gt,
+                  lt,
                   iff,
                   elze,
                   end,
@@ -28,6 +30,8 @@ std::map<op_t, std::string> op_t_names{{op_t::push, "PUSH"},
                                        {op_t::plus, "PLUS"},
                                        {op_t::minus, "MINUS"},
                                        {op_t::equal, "EQUAL"},
+                                       {op_t::gt, "GT"},
+                                       {op_t::lt, "LT"},
                                        {op_t::iff, "IF"},
                                        {op_t::elze, "ELSE"},
                                        {op_t::end, "END"},
@@ -54,6 +58,8 @@ op push(uint64_t x) { return op{op_t::push, x}; }
 op plus() { return op{op_t::plus}; }
 op minus() { return op{op_t::minus}; }
 op equal() { return op{op_t::equal}; }
+op gt() { return op{op_t::gt}; }
+op lt() { return op{op_t::lt}; }
 op iff() { return op{op_t::iff}; }
 op elze() { return op{op_t::elze}; }
 op end() { return op{op_t::end}; }
@@ -96,6 +102,20 @@ void simulate(std::vector<op> program) {
                 auto b = pop(stack);
                 //std::cout << fmt::format("{} == {}: {}", a, b, a == b) << std::endl;
                 push(stack, a == b);
+                break;
+            }
+            case op_t::gt: {
+                auto b = pop(stack);
+                auto a = pop(stack);
+                //std::cout << fmt::format("{} > {}: {}", a, b, a > b) << std::endl;
+                push(stack, a > b);
+                break;
+            }
+            case op_t::lt: {
+                auto b = pop(stack);
+                auto a = pop(stack);
+                //std::cout << fmt::format("{} < {}: {}", a, b, a < b) << std::endl;
+                push(stack, a < b);
                 break;
             }
             case op_t::iff: {
@@ -199,6 +219,28 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    push rcx" << std::endl;
                 break;
             }
+            case op_t::gt: {
+                output << "    ;; -- gt --" << std::endl;
+                output << "    mov rcx, 0" << std::endl;
+                output << "    mov rdx, 1" << std::endl;
+                output << "    pop rbx" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    cmp rax, rbx" << std::endl;
+                output << "    cmovg rcx, rdx" << std::endl;
+                output << "    push rcx" << std::endl;
+                break;
+            }
+            case op_t::lt: {
+                output << "    ;; -- lt --" << std::endl;
+                output << "    mov rcx, 0" << std::endl;
+                output << "    mov rdx, 1" << std::endl;
+                output << "    pop rbx" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    cmp rax, rbx" << std::endl;
+                output << "    cmovl rcx, rdx" << std::endl;
+                output << "    push rcx" << std::endl;
+                break;
+            }
             case op_t::iff: {
                 output << "    ;; -- if --" << std::endl;
                 output << "    pop rax" << std::endl;
@@ -291,6 +333,10 @@ op parse_token_as_op(const token& tok) {
         return minus();
     } else if (kw.compare("=") == 0) {
         return equal();
+    } else if (kw.compare(">") == 0) {
+        return gt();
+    } else if (kw.compare("<") == 0) {
+        return lt();
     } else if (kw.compare("IF") == 0) {
         return iff();
     } else if (kw.compare("ELSE") == 0) {
