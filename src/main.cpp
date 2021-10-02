@@ -153,7 +153,12 @@ void compile(std::vector<op> program, std::string& output_path) {
     output.close();
 }
 
-op parse_word(const token& tok) {
+[[noreturn]] void token_error(const token& tok, const std::string& msg) {
+    std::cout << fmt::format("[ERR] {} ({},{}): '{}': {}", tok.file_path, tok.row, tok.col, tok.word, msg) << std::endl;
+    std::exit(1);
+}
+
+op parse_token_as_op(const token& tok) {
     if (tok.word.compare("+") == 0) {
         return plus();
     } else if (tok.word.compare("-") == 0) {
@@ -161,7 +166,15 @@ op parse_word(const token& tok) {
     } else if (tok.word.compare(".") == 0) {
         return dump();
     }
-    return push(std::stoi(tok.word));
+
+    try {
+        auto value = std::stoll(tok.word);
+        return push(value);
+    } catch (const std::invalid_argument& e) {
+        token_error(tok, "Invalid numeric value");
+    } catch (const std::out_of_range& e) {
+        token_error(tok, "Numeric value out of range");
+    }
 }
 
 std::vector<token> lex_line(const std::string& file_path, const std::string& line, const uint64_t row) {
@@ -222,8 +235,8 @@ std::vector<op> load_program_from_file(const std::string& file_path) {
     std::vector<op> program;
     program.reserve(tokens.size());
     for (auto& tok : tokens) {
-        std::cout << fmt::format("{}({:03},{:03}): {}", tok.file_path, tok.row, tok.col, tok.word) << std::endl;
-        program.push_back(parse_word(tok));
+        //std::cout << fmt::format("{}({:03},{:03}): {}", tok.file_path, tok.row, tok.col, tok.word) << std::endl;
+        program.push_back(parse_token_as_op(tok));
     }
 
     return program;
