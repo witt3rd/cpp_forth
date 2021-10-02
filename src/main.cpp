@@ -17,6 +17,7 @@ enum class op_t { push,
                   minus,
                   equal,
                   iff,
+                  elze,
                   end,
                   dump };
 
@@ -25,6 +26,7 @@ std::map<op_t, std::string> op_t_names{{op_t::push, "PUSH"},
                                        {op_t::minus, "MINUS"},
                                        {op_t::equal, "EQUAL"},
                                        {op_t::iff, "IF"},
+                                       {op_t::elze, "ELSE"},
                                        {op_t::end, "END"},
                                        {op_t::dump, "DUMP"}};
 
@@ -42,19 +44,20 @@ op plus() { return op{op_t::plus}; }
 op minus() { return op{op_t::minus}; }
 op equal() { return op{op_t::equal}; }
 op iff() { return op{op_t::iff}; }
+op elze() { return op{op_t::elze}; }
 op end() { return op{op_t::end}; }
 op dump() { return op{op_t::dump}; }
 
-inline const uint64_t pop(std::vector<uint64_t>& stack) {
+inline const int64_t pop(std::vector<int64_t>& stack) {
     auto x = stack.back();
     stack.pop_back();
     return x;
 }
 
-inline void push(std::vector<uint64_t>& stack, const uint64_t x) { stack.push_back(x); }
+inline void push(std::vector<int64_t>& stack, const int64_t x) { stack.push_back(x); }
 
 void simulate(std::vector<op> program) {
-    std::vector<uint64_t> stack;
+    std::vector<int64_t> stack;
     uint64_t ip{0};
     while (ip < program.size()) {
         const op& o{program[ip]};
@@ -79,16 +82,20 @@ void simulate(std::vector<op> program) {
             case op_t::equal: {
                 auto a = pop(stack);
                 auto b = pop(stack);
-                std::cout << fmt::format("{} == {}: {}", a, b, a == b) << std::endl;
+                //std::cout << fmt::format("{} == {}: {}", a, b, a == b) << std::endl;
                 push(stack, a == b);
                 break;
             }
             case op_t::iff: {
                 auto a = pop(stack);
                 if (a != 0) {
-                    std::cout << fmt::format("JMP -> {}", o.arg) << std::endl;
+                    //std::cout << fmt::format("JMP -> {}", o.arg) << std::endl;
                     ip = o.arg;
                 }
+                break;
+            }
+            case op_t::elze: {
+                ip = o.arg;
                 break;
             }
             case op_t::end: {
@@ -181,6 +188,13 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    jz end_" << o.arg << std::endl;
                 break;
             }
+            case op_t::elze: {
+                output << "    ;; -- else --" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    test rax, rax" << std::endl;
+                output << "    jz end_" << o.arg << std::endl;
+                break;
+            }
             case op_t::end: {
                 output << "    ;; -- end --" << std::endl;
                 output << "end_" << ip << ":" << std::endl;
@@ -211,12 +225,16 @@ op parse_tok(const std::string& tok) {
         return equal();
     } else if (tok.compare("IF") == 0) {
         return iff();
+    } else if (tok.compare("ELSE") == 0) {
+        return elze();
     } else if (tok.compare("END") == 0) {
         return end();
     } else if (tok.compare(".") == 0) {
         return dump();
     }
-    return push(std::stoi(tok));
+
+    auto value = std::stoll(tok);
+    return push(value);
 }
 
 std::vector<op>& cross_reference(std::vector<op>& program) {
@@ -226,14 +244,33 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
         op& o{program[ip]};
         if (o.type == op_t::iff) {
             stack.push_back(ip);
-        } else if (o.type == op_t::end) {
-            auto if_ip = stack.back();
+        } else if (o.type == op_t::elze) {
+            auto block_ip = stack.back();
             stack.pop_back();
-            op& if_op = program[if_ip];
-            if_op.arg = ip + 1;
+            op& block_op = program[block_ip];
+            //std::cout << fmt::format("ELSE @ {} matched with {} @ {}", ip, op_t_names[block_op.type], block_ip) << std::endl;
+            block_op.arg = ip + 1;
+            stack.push_back(ip);
+        } else if (o.type == op_t::end) {
+            auto block_ip = stack.back();
+            stack.pop_back();
+            op& block_op = program[block_ip];
+            //std::cout << fmt::format("END @ {} matched with {} @ {}", ip, op_t_names[block_op.type], block_ip) << std::endl;
+            if (block_op.type == op_t::iff || block_op.type == op_t::elze) {
+                block_op.arg = ip + 1;
+            } else {
+                std::cerr << "`END` can only close `if-else` blocks for now" << std::endl;
+                std::exit(1);
+            }
         }
         ip++;
     }
+
+    if (!stack.empty()) {
+        std::cerr << "Cross reference stack is non-empty (e.g., unmatched if/else/end)" << std::endl;
+        std::exit(1);
+    }
+
     return program;
 }
 

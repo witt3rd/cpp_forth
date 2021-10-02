@@ -7,5 +7,5 @@ Port of [Tsoding's Porth](https://github.com/tsoding/porth) simulator/compiler f
 ``` shell
 ./forth++ sim ../examples/test.forth
 ./forth++ com ../examples/test.forth
-./test
+../examples/test
 ```
