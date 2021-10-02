@@ -1,4 +1,5 @@
 #include "command.hpp"
+#include <cstdint>
 #include <filesystem>
 #include <fmt/core.h>
 #include <fmt/format.h>
@@ -15,12 +16,16 @@ enum class op_t { push,
                   plus,
                   minus,
                   equal,
+                  iff,
+                  end,
                   dump };
 
 std::map<op_t, std::string> op_t_names{{op_t::push, "PUSH"},
                                        {op_t::plus, "PLUS"},
                                        {op_t::minus, "MINUS"},
                                        {op_t::equal, "EQUAL"},
+                                       {op_t::iff, "IF"},
+                                       {op_t::end, "END"},
                                        {op_t::dump, "DUMP"}};
 
 struct op {
@@ -28,14 +33,16 @@ struct op {
     uint64_t arg;
 };
 
-void dump(op o) {
-    std::cout << fmt::format("{} {}", op_t_names[o.type], o.arg) << std::endl;
+std::string format_op(op o) {
+    return fmt::format("{} {}", op_t_names[o.type], o.arg);
 }
 
 op push(uint64_t x) { return op{op_t::push, x}; }
 op plus() { return op{op_t::plus}; }
 op minus() { return op{op_t::minus}; }
 op equal() { return op{op_t::equal}; }
+op iff() { return op{op_t::iff}; }
+op end() { return op{op_t::end}; }
 op dump() { return op{op_t::dump}; }
 
 inline const uint64_t pop(std::vector<uint64_t>& stack) {
@@ -48,8 +55,11 @@ inline void push(std::vector<uint64_t>& stack, const uint64_t x) { stack.push_ba
 
 void simulate(std::vector<op> program) {
     std::vector<uint64_t> stack;
-    for (op& o : program) {
-        // dump(o);
+    uint64_t ip{0};
+    while (ip < program.size()) {
+        const op& o{program[ip]};
+        std::cout << fmt::format("{}: {}", ip, format_op(o)) << std::endl;
+        ip++;
         switch (o.type) {
             case op_t::push:
                 push(stack, o.arg);
@@ -71,6 +81,17 @@ void simulate(std::vector<op> program) {
                 auto b = pop(stack);
                 std::cout << fmt::format("{} == {}: {}", a, b, a == b) << std::endl;
                 push(stack, a == b);
+                break;
+            }
+            case op_t::iff: {
+                auto a = pop(stack);
+                if (a != 0) {
+                    std::cout << fmt::format("JMP -> {}", o.arg) << std::endl;
+                    ip = o.arg;
+                }
+                break;
+            }
+            case op_t::end: {
                 break;
             }
             case op_t::dump:
@@ -149,6 +170,12 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    push rcx" << std::endl;
                 break;
             }
+            case op_t::iff: {
+                break;
+            }
+            case op_t::end: {
+                break;
+            }
             case op_t::dump:
                 output << "    ;; -- dump --" << std::endl;
                 output << "    pop rdi" << std::endl;
@@ -172,13 +199,35 @@ op parse_tok(const std::string& tok) {
         return minus();
     } else if (tok.compare("=") == 0) {
         return equal();
+    } else if (tok.compare("IF") == 0) {
+        return iff();
+    } else if (tok.compare("END") == 0) {
+        return end();
     } else if (tok.compare(".") == 0) {
         return dump();
     }
     return push(std::stoi(tok));
 }
 
-std::vector<op> load_program(const std::string& input_file_path) {
+std::vector<op>& cross_reference(std::vector<op>& program) {
+    std::vector<uint64_t> stack;
+    uint64_t ip{0};
+    while (ip < program.size()) {
+        op& o{program[ip]};
+        if (o.type == op_t::iff) {
+            stack.push_back(ip);
+        } else if (o.type == op_t::end) {
+            auto if_ip = stack.back();
+            stack.pop_back();
+            op& if_op = program[if_ip];
+            if_op.arg = ip + 1;
+        }
+        ip++;
+    }
+    return program;
+}
+
+std::vector<op> load_program_from_file(const std::string& input_file_path) {
     std::ifstream input(input_file_path);
     if (!input.is_open()) {
         std::cerr << "Unable to open input file" << std::endl;
@@ -194,7 +243,7 @@ std::vector<op> load_program(const std::string& input_file_path) {
         program.push_back(parse_tok(tok));
     }
 
-    return program;
+    return cross_reference(program);
 }
 
 [[noreturn]] void usage(const std::string_view& forth_name) {
@@ -222,7 +271,7 @@ int main(int argc, char** argv) {
     }
     const std::string_view input_file_path{argv[cur_arg++]};
 
-    const std::vector<op> input_program = load_program(std::string{input_file_path});
+    const std::vector<op> input_program = load_program_from_file(std::string{input_file_path});
 
     if (subcommand == "sim") {
         simulate(input_program);
