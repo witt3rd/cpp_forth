@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.19)
 
-project(forth++ VERSION 0.0.1 LANGUAGES CXX)
+project(porth++ VERSION 0.0.1 LANGUAGES CXX)
 
 include(FetchContent)
 

@@ -5,7 +5,7 @@ Port of [Tsoding's Porth](https://github.com/tsoding/porth) simulator/compiler f
 ## Quick Start
 
 ``` shell
-./forth++ sim ../examples/test.forth
-./forth++ com ../examples/test.forth
+./porth++ sim ../examples/test.porth
+./porth++ com ../examples/test.porth
 ../examples/test
 ```
