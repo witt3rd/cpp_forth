@@ -1,17 +1,31 @@
 34 35 + 69 = IF
   69 .
-ELSE
-  -1 .
-END
+end
 
-500 80 - 421 = IF
+500 80 - 421 = iF
   420 .
 ELSE
   -1 .
-END
+enD
 
-10 20 + 30 = IF
+10 20 + 30 = if
   30 .
-ELSE
+else
   -1 .
-END
+end
+
+1 1 + 2 = if
+  2 .
+  2 2 + 4 = if
+    4 .
+    4 4 + 8 = if
+      8 .
+    else
+      -8 .
+    end
+  else
+    -4 .
+  end
+else
+  -2 .
+end

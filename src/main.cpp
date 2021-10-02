@@ -1,4 +1,6 @@
 #include "command.hpp"
+#include <algorithm>
+#include <cctype>
 #include <cstdint>
 #include <filesystem>
 #include <fmt/core.h>
@@ -88,7 +90,7 @@ void simulate(std::vector<op> program) {
             }
             case op_t::iff: {
                 auto a = pop(stack);
-                if (a != 0) {
+                if (a == 0) {
                     //std::cout << fmt::format("JMP -> {}", o.arg) << std::endl;
                     ip = o.arg;
                 }
@@ -287,6 +289,7 @@ std::vector<op> load_program_from_file(const std::string& input_file_path) {
     std::vector<op> program;
     program.reserve(tokens.size());
     for (auto& tok : tokens) {
+        std::transform(tok.begin(), tok.end(), tok.begin(), ::toupper);
         program.push_back(parse_tok(tok));
     }
 
