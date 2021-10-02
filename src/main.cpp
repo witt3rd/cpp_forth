@@ -58,7 +58,7 @@ void simulate(std::vector<op> program) {
     uint64_t ip{0};
     while (ip < program.size()) {
         const op& o{program[ip]};
-        std::cout << fmt::format("{}: {}", ip, format_op(o)) << std::endl;
+        //std::cout << fmt::format("{}: {}", ip, format_op(o)) << std::endl;
         ip++;
         switch (o.type) {
             case op_t::push:
@@ -136,8 +136,12 @@ void compile(std::vector<op> program, std::string& output_path) {
 
     output << "global _start" << std::endl;
     output << "_start:" << std::endl;
-    for (op& o : program) {
-        //dump(o);
+
+    uint64_t ip{0};
+    while (ip < program.size()) {
+        const op& o{program[ip]};
+        //std::cout << fmt::format("{}: {}", ip, format_op(o)) << std::endl;
+        ip++;
         switch (o.type) {
             case op_t::push:
                 output << "    ;; -- push %d --" << std::endl;
@@ -171,9 +175,15 @@ void compile(std::vector<op> program, std::string& output_path) {
                 break;
             }
             case op_t::iff: {
+                output << "    ;; -- if --" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    test rax, rax" << std::endl;
+                output << "    jz end_" << o.arg << std::endl;
                 break;
             }
             case op_t::end: {
+                output << "    ;; -- end --" << std::endl;
+                output << "end_" << ip << ":" << std::endl;
                 break;
             }
             case op_t::dump:
