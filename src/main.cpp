@@ -204,10 +204,9 @@ int main(int argc, char** argv) {
     if (subcommand == "sim") {
         simulate(input_program);
     } else if (subcommand == "com") {
-        std::filesystem::path p = input_file_path;
+        std::filesystem::path p(input_file_path);
         p.replace_extension("");
-        const std::string_view output_file_path{p.string()};
-
+        auto output_file_path{p.string()};
         // assemble
         auto assembler_file_path = fmt::format("{}.asm", output_file_path);
         compile(input_program, assembler_file_path);
