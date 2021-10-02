@@ -21,6 +21,7 @@ enum class op_t { push,
                   iff,
                   elze,
                   end,
+                  dup,
                   dump };
 
 std::map<op_t, std::string> op_t_names{{op_t::push, "PUSH"},
@@ -30,11 +31,19 @@ std::map<op_t, std::string> op_t_names{{op_t::push, "PUSH"},
                                        {op_t::iff, "IF"},
                                        {op_t::elze, "ELSE"},
                                        {op_t::end, "END"},
+                                       {op_t::dup, "DUP"},
                                        {op_t::dump, "DUMP"}};
 
 struct op {
     op_t type;
     uint64_t arg;
+};
+
+struct token {
+    std::string file_path;
+    uint64_t row;
+    uint64_t col;
+    std::string word;
 };
 
 std::string format_op(op o) {
@@ -48,6 +57,7 @@ op equal() { return op{op_t::equal}; }
 op iff() { return op{op_t::iff}; }
 op elze() { return op{op_t::elze}; }
 op end() { return op{op_t::end}; }
+op dup() { return op{op_t::dup}; }
 op dump() { return op{op_t::dump}; }
 
 inline const int64_t pop(std::vector<int64_t>& stack) {
@@ -101,6 +111,12 @@ void simulate(std::vector<op> program) {
                 break;
             }
             case op_t::end: {
+                break;
+            }
+            case op_t::dup: {
+                auto a = pop(stack);
+                push(stack, a);
+                push(stack, a);
                 break;
             }
             case op_t::dump:
@@ -201,6 +217,13 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "addr_" << ip << ":" << std::endl;
                 break;
             }
+            case op_t::dup: {
+                output << "    ;; -- dup --" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    push rax" << std::endl;
+                output << "    push rax" << std::endl;
+                break;
+            }
             case op_t::dump:
                 output << "    ;; -- dump --" << std::endl;
                 output << "    pop rdi" << std::endl;
@@ -215,27 +238,6 @@ void compile(std::vector<op> program, std::string& output_path) {
     output << "    syscall" << std::endl;
 
     output.close();
-}
-
-op parse_tok(const std::string& tok) {
-    if (tok.compare("+") == 0) {
-        return plus();
-    } else if (tok.compare("-") == 0) {
-        return minus();
-    } else if (tok.compare("=") == 0) {
-        return equal();
-    } else if (tok.compare("IF") == 0) {
-        return iff();
-    } else if (tok.compare("ELSE") == 0) {
-        return elze();
-    } else if (tok.compare("END") == 0) {
-        return end();
-    } else if (tok.compare(".") == 0) {
-        return dump();
-    }
-
-    auto value = std::stoll(tok);
-    return push(value);
 }
 
 std::vector<op>& cross_reference(std::vector<op>& program) {
@@ -275,21 +277,102 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
     return program;
 }
 
-std::vector<op> load_program_from_file(const std::string& input_file_path) {
-    std::ifstream input(input_file_path);
-    if (!input.is_open()) {
+[[noreturn]] void token_error(const token& tok, const std::string& msg) {
+    std::cout << fmt::format("[ERR] {} ({},{}): '{}': {}", tok.file_path, tok.row, tok.col, tok.word, msg) << std::endl;
+    std::exit(1);
+}
+
+op parse_token_as_op(const token& tok) {
+    std::string kw = tok.word;
+    std::transform(kw.begin(), kw.end(), kw.begin(), ::toupper);
+    if (kw.compare("+") == 0) {
+        return plus();
+    } else if (kw.compare("-") == 0) {
+        return minus();
+    } else if (kw.compare("=") == 0) {
+        return equal();
+    } else if (kw.compare("IF") == 0) {
+        return iff();
+    } else if (kw.compare("ELSE") == 0) {
+        return elze();
+    } else if (kw.compare("END") == 0) {
+        return end();
+    } else if (kw.compare("DUP") == 0) {
+        return dup();
+    } else if (kw.compare(".") == 0) {
+        return dump();
+    }
+
+    try {
+        auto value = std::stoll(tok.word);
+        return push(value);
+    } catch (const std::invalid_argument& e) {
+        token_error(tok, "Invalid numeric value");
+    } catch (const std::out_of_range& e) {
+        token_error(tok, "Numeric value out of range");
+    }
+}
+
+std::vector<token> lex_line(const std::string& file_path, const std::string& line, const uint64_t row) {
+    std::vector<token> tokens;
+    uint64_t col{0};
+    bool is_word{false};
+    token cur_token{.file_path = file_path, .row = row};
+
+    for (auto c : line) {
+        if (std::isspace(c)) {
+            if (is_word) {
+                tokens.push_back(cur_token);
+                is_word = false;
+            }
+        } else {
+            if (is_word) {
+                cur_token.word += c;
+            } else {
+                cur_token.col  = col;
+                cur_token.word = c;
+                is_word        = true;
+            }
+        }
+        col++;
+    }
+    if (is_word) {
+        tokens.push_back(cur_token);
+    }
+    return tokens;
+}
+
+std::vector<token> lex_file(const std::string& file_path) {
+    std::ifstream f(file_path);
+    if (!f.is_open()) {
         std::cerr << "Unable to open input file" << std::endl;
         std::exit(1);
     }
-    std::vector<std::string> tokens{std::istream_iterator<std::string>{input},
-                                    std::istream_iterator<std::string>{}};
-    input.close();
+
+    std::vector<token> tokens;
+    std::string line;
+    uint64_t row{0};
+
+    while (std::getline(f, line)) {
+        auto line_tokens = lex_line(file_path, line, row);
+        tokens.insert(tokens.cend(), line_tokens.cbegin(), line_tokens.cend());
+        row++;
+    }
+
+    f.close();
+
+    return tokens;
+}
+
+std::vector<op> load_program_from_file(const std::string& file_path) {
+
+    auto tokens{lex_file(file_path)};
 
     std::vector<op> program;
     program.reserve(tokens.size());
     for (auto& tok : tokens) {
-        std::transform(tok.begin(), tok.end(), tok.begin(), ::toupper);
-        program.push_back(parse_tok(tok));
+        //std::cout << fmt::format("{}({:03},{:03}): {}", tok.file_path, tok.row, tok.col, tok.word) << std::endl;
+        program.push_back(parse_token_as_op(tok));
     }
 
     return cross_reference(program);
@@ -306,19 +389,19 @@ std::vector<op> load_program_from_file(const std::string& input_file_path) {
 int main(int argc, char** argv) {
 
     auto cur_arg{0};
-    const std::string_view forth_name{argv[cur_arg++]};
+    const std::string forth_name{argv[cur_arg++]};
 
     if (argc <= cur_arg) {
         std::cerr << ">>> Missing subcommand" << std::endl;
         usage(forth_name);
     }
-    const std::string_view subcommand{argv[cur_arg++]};
+    const std::string subcommand{argv[cur_arg++]};
 
     if (argc <= cur_arg) {
         std::cerr << ">>> Missing input file path" << std::endl;
         usage(forth_name);
     }
-    const std::string_view input_file_path{argv[cur_arg++]};
+    const std::string input_file_path{argv[cur_arg++]};
 
     const std::vector<op> input_program = load_program_from_file(std::string{input_file_path});
 
