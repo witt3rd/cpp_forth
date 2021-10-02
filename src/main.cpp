@@ -14,11 +14,13 @@
 enum class op_t { push,
                   plus,
                   minus,
+                  equal,
                   dump };
 
 std::map<op_t, std::string> op_t_names{{op_t::push, "PUSH"},
                                        {op_t::plus, "PLUS"},
                                        {op_t::minus, "MINUS"},
+                                       {op_t::equal, "EQUAL"},
                                        {op_t::dump, "DUMP"}};
 
 struct op {
@@ -33,6 +35,7 @@ void dump(op o) {
 op push(uint64_t x) { return op{op_t::push, x}; }
 op plus() { return op{op_t::plus}; }
 op minus() { return op{op_t::minus}; }
+op equal() { return op{op_t::equal}; }
 op dump() { return op{op_t::dump}; }
 
 inline const uint64_t pop(std::vector<uint64_t>& stack) {
@@ -61,6 +64,13 @@ void simulate(std::vector<op> program) {
                 auto a = pop(stack);
                 auto b = pop(stack);
                 push(stack, b - a);
+                break;
+            }
+            case op_t::equal: {
+                auto a = pop(stack);
+                auto b = pop(stack);
+                std::cout << fmt::format("{} == {}: {}", a, b, a == b) << std::endl;
+                push(stack, a == b);
                 break;
             }
             case op_t::dump:
@@ -128,6 +138,17 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    push rbx" << std::endl;
                 break;
             }
+            case op_t::equal: {
+                output << "    ;; -- equal --" << std::endl;
+                output << "    mov rcx, 0" << std::endl;
+                output << "    mov rdx, 1" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    pop rbx" << std::endl;
+                output << "    cmp rax, rbx" << std::endl;
+                output << "    cmove rcx, rdx" << std::endl;
+                output << "    push rcx" << std::endl;
+                break;
+            }
             case op_t::dump:
                 output << "    ;; -- dump --" << std::endl;
                 output << "    pop rdi" << std::endl;
@@ -149,6 +170,8 @@ op parse_tok(const std::string& tok) {
         return plus();
     } else if (tok.compare("-") == 0) {
         return minus();
+    } else if (tok.compare("=") == 0) {
+        return equal();
     } else if (tok.compare(".") == 0) {
         return dump();
     }
