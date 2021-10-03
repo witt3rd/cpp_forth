@@ -1,56 +1,56 @@
 // simple IF (true)
-34 35 + 69 = IF 69 . end
+34 35 + 69 = IF 69 DUMP end
 
 // simple IF (false)
-34 35 + 420 = IF 69 . end
+34 35 + 420 = IF 69 DUMP end
 
 // IF/ELSE (true)
-500 80 - 420 = iF 420 . ELSE 0 . enD
+500 80 - 420 = iF 420 DUMP ELSE 0 DUMP enD
 
 // IF/ELSE (false)
-500 80 - 60 = iF 420 . ELSE 0 . enD
+500 80 - 60 = iF 420 DUMP ELSE 0 DUMP enD
 
 // nested IF/ELSE
 1 1 + 2 = if
-  2 .
+  2 DUMP
   2 2 + 4 = if
-    4 .
+    4 DUMP
     4 4 + 8 = if
-      8 .
+      8 DUMP
     else
-      -8 .
+      -8 DUMP
     end
   else
-    -4 .
+    -4 DUMP
   end
 else
-  -2 .
+  -2 DUMP
 end
 
 // GT (true)
 4 3 > if
-  1 .
+  1 DUMP
 else
-  0 .
+  0 DUMP
 end
 
 // LT (true)
 3 4 < if
-  1 .
+  1 DUMP
 else
-  0 .
+  0 DUMP
 end
 
 // LT (false)
 4 3 < if
-  1 .
+  1 DUMP
 else
-  0 .
+  0 DUMP
 end
 
 // GT (false)
 3 4 > if
-  1 .
+  1 DUMP
 else
-  0 .
+  0 DUMP
 end
