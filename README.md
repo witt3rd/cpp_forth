@@ -1,4 +1,4 @@
-# Forth
+# Porth++
 
 Port of [Tsoding's Porth](https://github.com/tsoding/porth) simulator/compiler from Python to CPP.
 
