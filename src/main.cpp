@@ -87,7 +87,7 @@ void simulate(std::vector<op> program) {
     while (ip < program.size()) {
         const op& o{program[ip]};
         if (is_trace) std::cout << fmt::format("{:03}[{:03}]: {}", ip, stack.size(), format_op(o)) << std::endl;
-        ip++;
+        ip++;// increment by default; may get overridden
         switch (o.type) {
             case op_t::push:
                 if (is_trace) std::cout << fmt::format("$ PUSH {}", o.arg) << std::endl;
@@ -215,7 +215,6 @@ void compile(std::vector<op> program, std::string& output_path) {
         const op& o{program[ip]};
         //std::cout << fmt::format("{}: {}", ip, format_op(o)) << std::endl;
         output << "addr_" << ip << ":" << std::endl;
-        ip++;
         switch (o.type) {
             case op_t::push:
                 output << "    ;; -- push %d --" << std::endl;
@@ -284,6 +283,7 @@ void compile(std::vector<op> program, std::string& output_path) {
             }
             case op_t::end: {
                 output << "    ;; -- end --" << std::endl;
+                //std::cout << fmt::format("%END: ip={}, arg={}", ip, o.arg) << std::endl;
                 if (ip + 1 != o.arg) {
                     output << "    jmp addr_" << o.arg << std::endl;
                 }
@@ -313,6 +313,7 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    call dump" << std::endl;
                 break;
         }
+        ip++;
     }
 
     output << "    ;; -- exit --" << std::endl;
@@ -349,12 +350,13 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
                 // - executing the success branch of an IF with no ELSE -> jump to next instruction
                 // - the failure branch of an IF with an ELSE -> jump to next instruction
                 // - WHILE loop -> jump back to condition
-                auto block_ip = ip_stack.back();
+                auto block_ip = ip_stack.back();// IF, ELSE, DO, ...
                 ip_stack.pop_back();
                 op& block_op = program[block_ip];
                 if (is_trace) std::cout << fmt::format("END @ {} matched with {} @ {}", ip, op_t_names[block_op.type], block_ip) << std::endl;
                 if (block_op.type == op_t::iff || block_op.type == op_t::elze) {
-                    block_op.arg = ip + 1;// jump to instruction _after_ END
+                    o.arg        = ip + 1;// Update END to jump to next instruction
+                    block_op.arg = ip;    // jump to this instruction (END)
                 } else if (block_op.type == op_t::doo) {
                     o.arg        = block_op.arg;// END jumps to WHILE (stored in DO arg)
                     block_op.arg = ip + 1;      // Update DO to jump _past_ END when fail
