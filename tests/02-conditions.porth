@@ -1,7 +1,16 @@
+// simple IF (true)
 34 35 + 69 = IF 69 . end
-500 80 - 421 = iF 420 . ELSE -1 . enD
-10 20 + 30 = if 30 . else -1 . end
 
+// simple IF (false)
+34 35 + 420 = IF 69 . end
+
+// IF/ELSE (true)
+500 80 - 420 = iF 420 . ELSE 0 . enD
+
+// IF/ELSE (false)
+500 80 - 60 = iF 420 . ELSE 0 . enD
+
+// nested IF/ELSE
 1 1 + 2 = if
   2 .
   2 2 + 4 = if
@@ -18,24 +27,28 @@ else
   -2 .
 end
 
+// GT (true)
 4 3 > if
   1 .
 else
   0 .
 end
 
+// LT (true)
 3 4 < if
   1 .
 else
   0 .
 end
 
+// LT (false)
 4 3 < if
   1 .
 else
   0 .
 end
 
+// GT (false)
 3 4 > if
   1 .
 else
