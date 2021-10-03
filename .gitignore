@@ -4,3 +4,5 @@ compile_commands.json
 .clangd/
 examples/*
 !examples/*.[fp]orth
+tests/*
+!tests/*.[fp]orth

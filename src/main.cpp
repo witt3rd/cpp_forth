@@ -42,35 +42,45 @@ std::map<op_t, std::string> op_t_names{{op_t::push, "PUSH"},
                                        {op_t::doo, "DO"},
                                        {op_t::dump, "DUMP"}};
 
-struct op {
-    op_t type;
-    uint64_t arg;
-};
-
-struct token {
+struct loc {
     std::string file_path;
     uint64_t row;
     uint64_t col;
+};
+
+struct op {
+    op_t type;
+    loc loc;
+    int64_t value{};
+    uint64_t jmp{};
+};
+
+struct token {
+    loc loc;
     std::string word;
 };
 
-std::string format_op(op o) {
-    return fmt::format("{} {}", op_t_names[o.type], o.arg);
+std::string format_loc(const loc& loc) {
+    return fmt::format("{}({}:{})", loc.file_path, loc.row, loc.col);
 }
 
-op push(uint64_t x) { return op{op_t::push, x}; }
-op plus() { return op{op_t::plus}; }
-op minus() { return op{op_t::minus}; }
-op equal() { return op{op_t::equal}; }
-op gt() { return op{op_t::gt}; }
-op lt() { return op{op_t::lt}; }
-op iff() { return op{op_t::iff}; }
-op elze() { return op{op_t::elze}; }
-op end() { return op{op_t::end}; }
-op dup() { return op{op_t::dup}; }
-op wile() { return op{op_t::wile}; }
-op doo() { return op{op_t::doo}; }
-op dump() { return op{op_t::dump}; }
+std::string format_op(const op& o) {
+    return fmt::format("type: {}, loc: {}, value: {}, jmp: {}", op_t_names[o.type], format_loc(o.loc), o.value, o.jmp);
+}
+
+op push(loc loc, int64_t value) { return op{.type = op_t::push, .loc = loc, .value = value}; }
+op plus(loc loc) { return op{.type = op_t::plus, .loc = loc}; }
+op minus(loc loc) { return op{.type = op_t::minus, .loc = loc}; }
+op equal(loc loc) { return op{.type = op_t::equal, .loc = loc}; }
+op gt(loc loc) { return op{.type = op_t::gt, .loc = loc}; }
+op lt(loc loc) { return op{.type = op_t::lt, .loc = loc}; }
+op iff(loc loc) { return op{.type = op_t::iff, .loc = loc}; }
+op elze(loc loc) { return op{.type = op_t::elze, .loc = loc}; }
+op end(loc loc) { return op{.type = op_t::end, .loc = loc}; }
+op dup(loc loc) { return op{.type = op_t::dup, .loc = loc}; }
+op wile(loc loc) { return op{.type = op_t::wile, .loc = loc}; }
+op doo(loc loc) { return op{.type = op_t::doo, .loc = loc}; }
+op dump(loc loc) { return op{.type = op_t::dump, .loc = loc}; }
 
 inline const int64_t pop(std::vector<int64_t>& stack) {
     auto x = stack.back();
@@ -90,8 +100,8 @@ void simulate(std::vector<op> program) {
         ip++;// increment by default; may get overridden
         switch (o.type) {
             case op_t::push:
-                if (is_trace) std::cout << fmt::format("$ PUSH {}", o.arg) << std::endl;
-                push(stack, o.arg);
+                if (is_trace) std::cout << fmt::format("$ PUSH {}", o.value) << std::endl;
+                push(stack, o.value);
                 break;
             case op_t::plus: {
                 auto b = pop(stack);
@@ -133,18 +143,18 @@ void simulate(std::vector<op> program) {
                 if (is_trace) std::cout << fmt::format("$ IF {} ({})", a, a != 0) << std::endl;
                 if (a == 0) {
                     // failed the IF condition, jump _past_ the ELSE or END
-                    ip = o.arg;
+                    ip = o.jmp;
                 }
                 break;
             }
             case op_t::elze: {
                 // when we hit an ELSE (from executing the success branch of an IF), jump to the END
-                ip = o.arg;
+                ip = o.jmp;
                 break;
             }
             case op_t::end: {
                 // when we hit an END, jump to its saved ip
-                ip = o.arg;
+                ip = o.jmp;
                 break;
             }
             case op_t::wile: {
@@ -156,7 +166,7 @@ void simulate(std::vector<op> program) {
                 if (is_trace) std::cout << fmt::format("$ DO {} ({})", a, a != 0) << std::endl;
                 if (a == 0) {
                     // failed the WHILE condition, jump _past_ the END
-                    ip = o.arg;
+                    ip = o.jmp;
                 }
                 break;
             }
@@ -218,7 +228,7 @@ void compile(std::vector<op> program, std::string& output_path) {
         switch (o.type) {
             case op_t::push:
                 output << "    ;; -- push %d --" << std::endl;
-                output << "    push " << o.arg << std::endl;
+                output << "    push " << o.value << std::endl;
                 break;
             case op_t::plus: {
                 output << "    ;; -- plus --" << std::endl;
@@ -273,19 +283,19 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    ;; -- if --" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    test rax, rax" << std::endl;
-                output << "    jz addr_" << o.arg << std::endl;
+                output << "    jz addr_" << o.jmp << std::endl;
                 break;
             }
             case op_t::elze: {
                 output << "    ;; -- else --" << std::endl;
-                output << "    jmp addr_" << o.arg << std::endl;
+                output << "    jmp addr_" << o.jmp << std::endl;
                 break;
             }
             case op_t::end: {
                 output << "    ;; -- end --" << std::endl;
                 //std::cout << fmt::format("%END: ip={}, arg={}", ip, o.arg) << std::endl;
-                if (ip + 1 != o.arg) {
-                    output << "    jmp addr_" << o.arg << std::endl;
+                if (ip + 1 != o.jmp) {
+                    output << "    jmp addr_" << o.jmp << std::endl;
                 }
                 break;
             }
@@ -297,7 +307,7 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    ;; -- do --" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    test rax, rax" << std::endl;
-                output << "    jz addr_" << o.arg << std::endl;
+                output << "    jz addr_" << o.jmp << std::endl;
                 break;
             }
             case op_t::dup: {
@@ -341,7 +351,7 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
                 ip_stack.pop_back();
                 op& iff_op = program[iff_ip];
                 if (is_trace) std::cout << fmt::format("ELSE @ {} matched with {} @ {}", ip, op_t_names[iff_op.type], iff_ip) << std::endl;
-                iff_op.arg = ip + 1;   // IF will jump to instruction _after_ ELSE when fail
+                iff_op.jmp = ip + 1;   // IF will jump to instruction _after_ ELSE when fail
                 ip_stack.push_back(ip);// save the ELSE ip for END
                 break;
             }
@@ -355,11 +365,11 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
                 op& block_op = program[block_ip];
                 if (is_trace) std::cout << fmt::format("END @ {} matched with {} @ {}", ip, op_t_names[block_op.type], block_ip) << std::endl;
                 if (block_op.type == op_t::iff || block_op.type == op_t::elze) {
-                    o.arg        = ip + 1;// Update END to jump to next instruction
-                    block_op.arg = ip;    // jump to this instruction (END)
+                    o.jmp        = ip + 1;// Update END to jump to next instruction
+                    block_op.jmp = ip;    // jump to this instruction (END)
                 } else if (block_op.type == op_t::doo) {
-                    o.arg        = block_op.arg;// END jumps to WHILE (stored in DO arg)
-                    block_op.arg = ip + 1;      // Update DO to jump _past_ END when fail
+                    o.jmp        = block_op.jmp;// END jumps to WHILE (stored in DO arg)
+                    block_op.jmp = ip + 1;      // Update DO to jump _past_ END when fail
                 } else {
                     std::cerr << "`END` can only close `IF`, `ELSE`, and `DO` blocks for now" << std::endl;
                     std::exit(1);
@@ -375,7 +385,7 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
                 ip_stack.pop_back();
                 op& wile_op = program[wile_ip];
                 if (is_trace) std::cout << fmt::format("DO @ {} matched with {} @ {}", ip, op_t_names[wile_op.type], wile_ip) << std::endl;
-                o.arg = wile_ip;       // record the WHILE ip
+                o.jmp = wile_ip;       // record the WHILE ip
                 ip_stack.push_back(ip);// save the DO ip for END
                 break;
             }
@@ -394,7 +404,7 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
 }
 
 [[noreturn]] void token_error(const token& tok, const std::string& msg) {
-    std::cout << fmt::format("[ERR] {} ({},{}): '{}': {}", tok.file_path, tok.row, tok.col, tok.word, msg) << std::endl;
+    std::cout << fmt::format("[ERR] {} '{}': {}", format_loc(tok.loc), tok.word, msg) << std::endl;
     std::exit(1);
 }
 
@@ -402,34 +412,34 @@ op parse_token_as_op(const token& tok) {
     std::string kw = tok.word;
     std::transform(kw.begin(), kw.end(), kw.begin(), ::toupper);
     if (kw.compare("+") == 0) {
-        return plus();
+        return plus(tok.loc);
     } else if (kw.compare("-") == 0) {
-        return minus();
+        return minus(tok.loc);
     } else if (kw.compare("=") == 0) {
-        return equal();
+        return equal(tok.loc);
     } else if (kw.compare(">") == 0) {
-        return gt();
+        return gt(tok.loc);
     } else if (kw.compare("<") == 0) {
-        return lt();
+        return lt(tok.loc);
     } else if (kw.compare("IF") == 0) {
-        return iff();
+        return iff(tok.loc);
     } else if (kw.compare("ELSE") == 0) {
-        return elze();
+        return elze(tok.loc);
     } else if (kw.compare("END") == 0) {
-        return end();
+        return end(tok.loc);
     } else if (kw.compare("WHILE") == 0) {
-        return wile();
+        return wile(tok.loc);
     } else if (kw.compare("DO") == 0) {
-        return doo();
+        return doo(tok.loc);
     } else if (kw.compare("DUP") == 0) {
-        return dup();
+        return dup(tok.loc);
     } else if (kw.compare(".") == 0) {
-        return dump();
+        return dump(tok.loc);
     }
 
     try {
         auto value = std::stoll(tok.word);
-        return push(value);
+        return push(tok.loc, value);
     } catch (const std::invalid_argument& e) {
         token_error(tok, "Invalid numeric value");
     } catch (const std::out_of_range& e) {
@@ -441,7 +451,8 @@ std::vector<token> lex_line(const std::string& file_path, const std::string& lin
     std::vector<token> tokens;
     uint64_t col{0};
     bool is_word{false};
-    token cur_token{.file_path = file_path, .row = row};
+    std::string cur_word;
+    uint64_t cur_word_col{};
 
     // remove comment (if any)
     auto no_comment = line.substr(0, line.find("//"));
@@ -449,22 +460,25 @@ std::vector<token> lex_line(const std::string& file_path, const std::string& lin
     for (auto c : no_comment) {
         if (std::isspace(c)) {
             if (is_word) {
-                tokens.push_back(cur_token);
+                token tok{loc{file_path, row, cur_word_col}, cur_word};
+                tokens.push_back(tok);
                 is_word = false;
+                cur_word.clear();
             }
         } else {
             if (is_word) {
-                cur_token.word += c;
+                cur_word += c;
             } else {
-                cur_token.col  = col;
-                cur_token.word = c;
-                is_word        = true;
+                cur_word     = c;
+                cur_word_col = col;
+                is_word      = true;
             }
         }
         col++;
     }
     if (is_word) {
-        tokens.push_back(cur_token);
+        token tok{loc{file_path, row, cur_word_col}, cur_word};
+        tokens.push_back(tok);
     }
     return tokens;
 }
