@@ -36,7 +36,12 @@ enum class op_t { PUSH,
                   LOAD,
                   STORE,
                   DUMP,
-                  SYSCALL3 };
+                  SYSCALL1,
+                  SYSCALL2,
+                  SYSCALL3,
+                  SYSCALL4,
+                  SYSCALL5,
+                  SYSCALL6 };
 
 std::map<op_t, std::string> op_t_names{{op_t::PUSH, "PUSH"},
                                        {op_t::PLUS, "PLUS"},
@@ -54,7 +59,12 @@ std::map<op_t, std::string> op_t_names{{op_t::PUSH, "PUSH"},
                                        {op_t::LOAD, "LOAD"},
                                        {op_t::STORE, "STORE"},
                                        {op_t::DUMP, "DUMP"},
-                                       {op_t::SYSCALL3, "SYSCALL3"}};
+                                       {op_t::SYSCALL1, "SYSCALL1"},
+                                       {op_t::SYSCALL2, "SYSCALL2"},
+                                       {op_t::SYSCALL3, "SYSCALL3"},
+                                       {op_t::SYSCALL4, "SYSCALL4"},
+                                       {op_t::SYSCALL5, "SYSCALL5"},
+                                       {op_t::SYSCALL6, "SYSCALL6"}};
 
 struct loc {
     std::string file_path;
@@ -98,7 +108,12 @@ op op_mem(loc loc) { return op{.type = op_t::MEM, .loc = loc}; }
 op op_load(loc loc) { return op{.type = op_t::LOAD, .loc = loc}; }
 op op_store(loc loc) { return op{.type = op_t::STORE, .loc = loc}; }
 op op_dump(loc loc) { return op{.type = op_t::DUMP, .loc = loc}; }
+op op_syscall1(loc loc) { return op{.type = op_t::SYSCALL1, .loc = loc}; }
+op op_syscall2(loc loc) { return op{.type = op_t::SYSCALL2, .loc = loc}; }
 op op_syscall3(loc loc) { return op{.type = op_t::SYSCALL3, .loc = loc}; }
+op op_syscall4(loc loc) { return op{.type = op_t::SYSCALL4, .loc = loc}; }
+op op_syscall5(loc loc) { return op{.type = op_t::SYSCALL5, .loc = loc}; }
+op op_syscall6(loc loc) { return op{.type = op_t::SYSCALL6, .loc = loc}; }
 
 template<typename T>
 inline const T pop(std::vector<T>& stack) {
@@ -225,7 +240,22 @@ void simulate(std::vector<op> program) {
                 std::cout << a << std::endl;
                 break;
             }
+            case op_t::SYSCALL1: {
+                break;
+            }
+            case op_t::SYSCALL2: {
+                break;
+            }
             case op_t::SYSCALL3: {
+                break;
+            }
+            case op_t::SYSCALL4: {
+                break;
+            }
+            case op_t::SYSCALL5: {
+                break;
+            }
+            case op_t::SYSCALL6: {
                 break;
             }
         }
@@ -390,12 +420,60 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    call dump" << std::endl;
                 break;
             }
+            case op_t::SYSCALL1: {
+                output << "    ;; -- syscall1 --" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    pop rdi" << std::endl;
+                output << "    syscall" << std::endl;
+                break;
+            }
+            case op_t::SYSCALL2: {
+                output << "    ;; -- syscall2 --" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    pop rdi" << std::endl;
+                output << "    pop rsi" << std::endl;
+                output << "    syscall" << std::endl;
+                break;
+            }
             case op_t::SYSCALL3: {
                 output << "    ;; -- syscall3 --" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    pop rdi" << std::endl;
                 output << "    pop rsi" << std::endl;
                 output << "    pop rdx" << std::endl;
+                output << "    syscall" << std::endl;
+                break;
+            }
+            case op_t::SYSCALL4: {
+                output << "    ;; -- syscall4 --" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    pop rdi" << std::endl;
+                output << "    pop rsi" << std::endl;
+                output << "    pop rdx" << std::endl;
+                output << "    pop r10" << std::endl;
+                output << "    syscall" << std::endl;
+                break;
+            }
+            case op_t::SYSCALL5: {
+                output << "    ;; -- syscall5 --" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    pop rdi" << std::endl;
+                output << "    pop rsi" << std::endl;
+                output << "    pop rdx" << std::endl;
+                output << "    pop r10" << std::endl;
+                output << "    pop r8" << std::endl;
+                output << "    syscall" << std::endl;
+                break;
+            }
+            case op_t::SYSCALL6: {
+                output << "    ;; -- syscall5 --" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    pop rdi" << std::endl;
+                output << "    pop rsi" << std::endl;
+                output << "    pop rdx" << std::endl;
+                output << "    pop r10" << std::endl;
+                output << "    pop r8" << std::endl;
+                output << "    pop r9" << std::endl;
                 output << "    syscall" << std::endl;
                 break;
             }
@@ -521,8 +599,18 @@ op parse_token_as_op(const token& tok) {
         return op_store(tok.loc);
     } else if (kw.compare("DUMP") == 0) {
         return op_dump(tok.loc);
+    } else if (kw.compare("SYSCALL1") == 0) {
+        return op_syscall1(tok.loc);
+    } else if (kw.compare("SYSCALL2") == 0) {
+        return op_syscall2(tok.loc);
     } else if (kw.compare("SYSCALL3") == 0) {
         return op_syscall3(tok.loc);
+    } else if (kw.compare("SYSCALL4") == 0) {
+        return op_syscall4(tok.loc);
+    } else if (kw.compare("SYSCALL5") == 0) {
+        return op_syscall5(tok.loc);
+    } else if (kw.compare("SYSCALL6") == 0) {
+        return op_syscall6(tok.loc);
     }
 
     try {

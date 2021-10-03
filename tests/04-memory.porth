@@ -3,11 +3,13 @@ mem 0 + 97 .
 mem 1 + 98 .
 mem 2 + 99 .
 
-2 mem 1 1 syscall3
+3 mem 1 1 syscall3
+69 60 syscall1
 
 // increment each character by 1, making it "bcd"
 mem 0 + dup , 1 + .
 mem 1 + dup , 1 + .
 mem 2 + dup , 1 + .
 
-2 mem 1 1 syscall3
+3 mem 1 1 syscall3
+
