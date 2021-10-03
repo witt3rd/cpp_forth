@@ -443,7 +443,10 @@ std::vector<token> lex_line(const std::string& file_path, const std::string& lin
     bool is_word{false};
     token cur_token{.file_path = file_path, .row = row};
 
-    for (auto c : line) {
+    // remove comment (if any)
+    auto no_comment = line.substr(0, line.find("//"));
+
+    for (auto c : no_comment) {
         if (std::isspace(c)) {
             if (is_word) {
                 tokens.push_back(cur_token);
