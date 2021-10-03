@@ -1,4 +1,5 @@
 #include "command.hpp"
+#include <algorithm>
 #include <cctype>
 #include <cstdint>
 #include <filesystem>
@@ -10,27 +11,41 @@
 #include <iterator>
 #include <map>
 #include <string>
-//#include <string_view>
+#include <string_view>
 #include <vector>
 
 enum class op_t { push,
                   plus,
                   minus,
+                  equal,
+                  gt,
+                  lt,
+                  iff,
+                  elze,
+                  end,
+                  dup,
+                  wile,
+                  doo,
                   dump };
 
 std::map<op_t, std::string> op_t_names{{op_t::push, "PUSH"},
                                        {op_t::plus, "PLUS"},
                                        {op_t::minus, "MINUS"},
+                                       {op_t::equal, "EQUAL"},
+                                       {op_t::gt, "GT"},
+                                       {op_t::lt, "LT"},
+                                       {op_t::iff, "IF"},
+                                       {op_t::elze, "ELSE"},
+                                       {op_t::end, "END"},
+                                       {op_t::dup, "DUP"},
+                                       {op_t::wile, "WHILE"},
+                                       {op_t::doo, "DO"},
                                        {op_t::dump, "DUMP"}};
 
 struct op {
     op_t type;
     uint64_t arg;
 };
-
-void dump(op o) {
-    std::cout << fmt::format("{} {}", op_t_names[o.type], o.arg) << std::endl;
-}
 
 struct token {
     std::string file_path;
@@ -39,37 +54,117 @@ struct token {
     std::string word;
 };
 
+std::string format_op(op o) {
+    return fmt::format("{} {}", op_t_names[o.type], o.arg);
+}
+
 op push(uint64_t x) { return op{op_t::push, x}; }
 op plus() { return op{op_t::plus}; }
 op minus() { return op{op_t::minus}; }
+op equal() { return op{op_t::equal}; }
+op gt() { return op{op_t::gt}; }
+op lt() { return op{op_t::lt}; }
+op iff() { return op{op_t::iff}; }
+op elze() { return op{op_t::elze}; }
+op end() { return op{op_t::end}; }
+op dup() { return op{op_t::dup}; }
+op wile() { return op{op_t::wile}; }
+op doo() { return op{op_t::doo}; }
 op dump() { return op{op_t::dump}; }
 
-inline const uint64_t pop(std::vector<uint64_t>& stack) {
+inline const int64_t pop(std::vector<int64_t>& stack) {
     auto x = stack.back();
     stack.pop_back();
     return x;
 }
 
-inline void push(std::vector<uint64_t>& stack, const uint64_t x) { stack.push_back(x); }
+inline void push(std::vector<int64_t>& stack, const int64_t x) { stack.push_back(x); }
 
 void simulate(std::vector<op> program) {
-    std::vector<uint64_t> stack;
-    for (op& o : program) {
-        // dump(o);
+    auto is_trace{false};
+    std::vector<int64_t> stack;
+    uint64_t ip{0};
+    while (ip < program.size()) {
+        const op& o{program[ip]};
+        if (is_trace) std::cout << fmt::format("{:03}[{:03}]: {}", ip, stack.size(), format_op(o)) << std::endl;
+        ip++;// increment by default; may get overridden
         switch (o.type) {
             case op_t::push:
+                if (is_trace) std::cout << fmt::format("$ PUSH {}", o.arg) << std::endl;
                 push(stack, o.arg);
                 break;
             case op_t::plus: {
-                auto a = pop(stack);
                 auto b = pop(stack);
+                auto a = pop(stack);
+                if (is_trace) std::cout << fmt::format("$ {} + {}: {}", a, b, a + b) << std::endl;
                 push(stack, a + b);
                 break;
             }
             case op_t::minus: {
-                auto a = pop(stack);
                 auto b = pop(stack);
-                push(stack, b - a);
+                auto a = pop(stack);
+                if (is_trace) std::cout << fmt::format("$ {} - {}: {}", a, b, a - b) << std::endl;
+                push(stack, a - b);
+                break;
+            }
+            case op_t::equal: {
+                auto b = pop(stack);
+                auto a = pop(stack);
+                if (is_trace) std::cout << fmt::format("$ {} == {}: {}", a, b, a == b) << std::endl;
+                push(stack, a == b);
+                break;
+            }
+            case op_t::gt: {
+                auto b = pop(stack);
+                auto a = pop(stack);
+                if (is_trace) std::cout << fmt::format("$ {} > {}: {}", a, b, a > b) << std::endl;
+                push(stack, a > b);
+                break;
+            }
+            case op_t::lt: {
+                auto b = pop(stack);
+                auto a = pop(stack);
+                if (is_trace) std::cout << fmt::format("$ {} < {}: {}", a, b, a < b) << std::endl;
+                push(stack, a < b);
+                break;
+            }
+            case op_t::iff: {
+                auto a = pop(stack);
+                if (is_trace) std::cout << fmt::format("$ IF {} ({})", a, a != 0) << std::endl;
+                if (a == 0) {
+                    // failed the IF condition, jump _past_ the ELSE or END
+                    ip = o.arg;
+                }
+                break;
+            }
+            case op_t::elze: {
+                // when we hit an ELSE (from executing the success branch of an IF), jump to the END
+                ip = o.arg;
+                break;
+            }
+            case op_t::end: {
+                // when we hit an END, jump to its saved ip
+                ip = o.arg;
+                break;
+            }
+            case op_t::wile: {
+                // do nothing
+                break;
+            }
+            case op_t::doo: {
+                auto a = pop(stack);
+                if (is_trace) std::cout << fmt::format("$ DO {} ({})", a, a != 0) << std::endl;
+                if (a == 0) {
+                    // failed the WHILE condition, jump _past_ the END
+                    ip = o.arg;
+                }
+                break;
+            }
+            case op_t::dup: {
+                auto a = pop(stack);
+                if (is_trace) std::cout << fmt::format("$ DUP {}", a) << std::endl;
+                push(stack, a);
+                push(stack, a);
                 break;
             }
             case op_t::dump:
@@ -114,8 +209,12 @@ void compile(std::vector<op> program, std::string& output_path) {
 
     output << "global _start" << std::endl;
     output << "_start:" << std::endl;
-    for (op& o : program) {
-        //dump(o);
+
+    uint64_t ip{0};
+    while (ip < program.size()) {
+        const op& o{program[ip]};
+        //std::cout << fmt::format("{}: {}", ip, format_op(o)) << std::endl;
+        output << "addr_" << ip << ":" << std::endl;
         switch (o.type) {
             case op_t::push:
                 output << "    ;; -- push %d --" << std::endl;
@@ -123,18 +222,89 @@ void compile(std::vector<op> program, std::string& output_path) {
                 break;
             case op_t::plus: {
                 output << "    ;; -- plus --" << std::endl;
-                output << "    pop rax" << std::endl;
                 output << "    pop rbx" << std::endl;
+                output << "    pop rax" << std::endl;
                 output << "    add rax, rbx" << std::endl;
                 output << "    push rax" << std::endl;
                 break;
             }
             case op_t::minus: {
                 output << "    ;; -- minus --" << std::endl;
-                output << "    pop rax" << std::endl;
                 output << "    pop rbx" << std::endl;
-                output << "    sub rbx, rax" << std::endl;
-                output << "    push rbx" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    sub rax, rbx" << std::endl;
+                output << "    push rax" << std::endl;
+                break;
+            }
+            case op_t::equal: {
+                output << "    ;; -- equal --" << std::endl;
+                output << "    mov rcx, 0" << std::endl;
+                output << "    mov rdx, 1" << std::endl;
+                output << "    pop rbx" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    cmp rax, rbx" << std::endl;
+                output << "    cmove rcx, rdx" << std::endl;
+                output << "    push rcx" << std::endl;
+                break;
+            }
+            case op_t::gt: {
+                output << "    ;; -- gt --" << std::endl;
+                output << "    mov rcx, 0" << std::endl;
+                output << "    mov rdx, 1" << std::endl;
+                output << "    pop rbx" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    cmp rax, rbx" << std::endl;
+                output << "    cmovg rcx, rdx" << std::endl;
+                output << "    push rcx" << std::endl;
+                break;
+            }
+            case op_t::lt: {
+                output << "    ;; -- lt --" << std::endl;
+                output << "    mov rcx, 0" << std::endl;
+                output << "    mov rdx, 1" << std::endl;
+                output << "    pop rbx" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    cmp rax, rbx" << std::endl;
+                output << "    cmovl rcx, rdx" << std::endl;
+                output << "    push rcx" << std::endl;
+                break;
+            }
+            case op_t::iff: {
+                output << "    ;; -- if --" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    test rax, rax" << std::endl;
+                output << "    jz addr_" << o.arg << std::endl;
+                break;
+            }
+            case op_t::elze: {
+                output << "    ;; -- else --" << std::endl;
+                output << "    jmp addr_" << o.arg << std::endl;
+                break;
+            }
+            case op_t::end: {
+                output << "    ;; -- end --" << std::endl;
+                //std::cout << fmt::format("%END: ip={}, arg={}", ip, o.arg) << std::endl;
+                if (ip + 1 != o.arg) {
+                    output << "    jmp addr_" << o.arg << std::endl;
+                }
+                break;
+            }
+            case op_t::wile: {
+                output << "    ;; -- while --" << std::endl;
+                break;
+            }
+            case op_t::doo: {
+                output << "    ;; -- do --" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    test rax, rax" << std::endl;
+                output << "    jz addr_" << o.arg << std::endl;
+                break;
+            }
+            case op_t::dup: {
+                output << "    ;; -- dup --" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    push rax" << std::endl;
+                output << "    push rax" << std::endl;
                 break;
             }
             case op_t::dump:
@@ -143,6 +313,7 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    call dump" << std::endl;
                 break;
         }
+        ip++;
     }
 
     output << "    ;; -- exit --" << std::endl;
@@ -153,17 +324,106 @@ void compile(std::vector<op> program, std::string& output_path) {
     output.close();
 }
 
+std::vector<op>& cross_reference(std::vector<op>& program) {
+    auto is_trace{false};
+    std::vector<uint64_t> ip_stack;
+    uint64_t ip{0};
+    while (ip < program.size()) {
+        op& o{program[ip]};
+        switch (o.type) {
+
+            case op_t::iff: {
+                ip_stack.push_back(ip);
+                break;
+            }
+            case op_t::elze: {
+                auto iff_ip = ip_stack.back();
+                ip_stack.pop_back();
+                op& iff_op = program[iff_ip];
+                if (is_trace) std::cout << fmt::format("ELSE @ {} matched with {} @ {}", ip, op_t_names[iff_op.type], iff_ip) << std::endl;
+                iff_op.arg = ip + 1;   // IF will jump to instruction _after_ ELSE when fail
+                ip_stack.push_back(ip);// save the ELSE ip for END
+                break;
+            }
+            case op_t::end: {
+                // when we hit an END from:
+                // - executing the success branch of an IF with no ELSE -> jump to next instruction
+                // - the failure branch of an IF with an ELSE -> jump to next instruction
+                // - WHILE loop -> jump back to condition
+                auto block_ip = ip_stack.back();// IF, ELSE, DO, ...
+                ip_stack.pop_back();
+                op& block_op = program[block_ip];
+                if (is_trace) std::cout << fmt::format("END @ {} matched with {} @ {}", ip, op_t_names[block_op.type], block_ip) << std::endl;
+                if (block_op.type == op_t::iff || block_op.type == op_t::elze) {
+                    o.arg        = ip + 1;// Update END to jump to next instruction
+                    block_op.arg = ip;    // jump to this instruction (END)
+                } else if (block_op.type == op_t::doo) {
+                    o.arg        = block_op.arg;// END jumps to WHILE (stored in DO arg)
+                    block_op.arg = ip + 1;      // Update DO to jump _past_ END when fail
+                } else {
+                    std::cerr << "`END` can only close `IF`, `ELSE`, and `DO` blocks for now" << std::endl;
+                    std::exit(1);
+                }
+                break;
+            }
+            case op_t::wile: {
+                ip_stack.push_back(ip);// save the WHILE ip for DO
+                break;
+            }
+            case op_t::doo: {
+                auto wile_ip = ip_stack.back();
+                ip_stack.pop_back();
+                op& wile_op = program[wile_ip];
+                if (is_trace) std::cout << fmt::format("DO @ {} matched with {} @ {}", ip, op_t_names[wile_op.type], wile_ip) << std::endl;
+                o.arg = wile_ip;       // record the WHILE ip
+                ip_stack.push_back(ip);// save the DO ip for END
+                break;
+            }
+            default:
+                break;
+        }
+        ip++;
+    }
+
+    if (!ip_stack.empty()) {
+        std::cerr << "Cross reference stack is non-empty (e.g., unmatched if/else/end)" << std::endl;
+        std::exit(1);
+    }
+
+    return program;
+}
+
 [[noreturn]] void token_error(const token& tok, const std::string& msg) {
     std::cout << fmt::format("[ERR] {} ({},{}): '{}': {}", tok.file_path, tok.row, tok.col, tok.word, msg) << std::endl;
     std::exit(1);
 }
 
 op parse_token_as_op(const token& tok) {
-    if (tok.word.compare("+") == 0) {
+    std::string kw = tok.word;
+    std::transform(kw.begin(), kw.end(), kw.begin(), ::toupper);
+    if (kw.compare("+") == 0) {
         return plus();
-    } else if (tok.word.compare("-") == 0) {
+    } else if (kw.compare("-") == 0) {
         return minus();
-    } else if (tok.word.compare(".") == 0) {
+    } else if (kw.compare("=") == 0) {
+        return equal();
+    } else if (kw.compare(">") == 0) {
+        return gt();
+    } else if (kw.compare("<") == 0) {
+        return lt();
+    } else if (kw.compare("IF") == 0) {
+        return iff();
+    } else if (kw.compare("ELSE") == 0) {
+        return elze();
+    } else if (kw.compare("END") == 0) {
+        return end();
+    } else if (kw.compare("WHILE") == 0) {
+        return wile();
+    } else if (kw.compare("DO") == 0) {
+        return doo();
+    } else if (kw.compare("DUP") == 0) {
+        return dup();
+    } else if (kw.compare(".") == 0) {
         return dump();
     }
 
@@ -239,7 +499,7 @@ std::vector<op> load_program_from_file(const std::string& file_path) {
         program.push_back(parse_token_as_op(tok));
     }
 
-    return program;
+    return cross_reference(program);
 }
 
 [[noreturn]] void usage(const std::string_view& forth_name) {
