@@ -29,6 +29,8 @@ enum class op_t { PUSH,
                   WHILE,
                   DO,
                   MEM,
+                  LOAD,
+                  STORE,
                   DUMP };
 
 std::map<op_t, std::string> op_t_names{{op_t::PUSH, "PUSH"},
@@ -44,6 +46,8 @@ std::map<op_t, std::string> op_t_names{{op_t::PUSH, "PUSH"},
                                        {op_t::WHILE, "WHILE"},
                                        {op_t::DO, "DO"},
                                        {op_t::MEM, "MEM"},
+                                       {op_t::LOAD, "LOAD"},
+                                       {op_t::STORE, "STORE"},
                                        {op_t::DUMP, "DUMP"}};
 
 struct loc {
@@ -85,6 +89,8 @@ op op_dup(loc loc) { return op{.type = op_t::DUP, .loc = loc}; }
 op op_while(loc loc) { return op{.type = op_t::WHILE, .loc = loc}; }
 op op_do(loc loc) { return op{.type = op_t::DO, .loc = loc}; }
 op op_mem(loc loc) { return op{.type = op_t::MEM, .loc = loc}; }
+op op_load(loc loc) { return op{.type = op_t::LOAD, .loc = loc}; }
+op op_store(loc loc) { return op{.type = op_t::STORE, .loc = loc}; }
 op op_dump(loc loc) { return op{.type = op_t::DUMP, .loc = loc}; }
 
 inline const int64_t pop(std::vector<int64_t>& stack) {
@@ -183,6 +189,14 @@ void simulate(std::vector<op> program) {
                 break;
             }
             case op_t::MEM: {
+                // TODO
+                break;
+            }
+            case op_t::LOAD: {
+                // TODO
+                break;
+            }
+            case op_t::STORE: {
                 // TODO
                 break;
             }
@@ -331,6 +345,21 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    push mem" << std::endl;
                 break;
             }
+            case op_t::LOAD: {
+                output << "    ;; -- load --" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    xor rbx, rbx" << std::endl;
+                output << "    mov bl, [rax]" << std::endl;
+                output << "    push rbx" << std::endl;
+                break;
+            }
+            case op_t::STORE: {
+                output << "    ;; -- store --" << std::endl;
+                output << "    pop rbx" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    mov [rax], bl" << std::endl;
+                break;
+            }
             case op_t::DUMP:
                 output << "    ;; -- dump --" << std::endl;
                 output << "    pop rdi" << std::endl;
@@ -455,6 +484,10 @@ op parse_token_as_op(const token& tok) {
         return op_dup(tok.loc);
     } else if (kw.compare("MEM") == 0) {
         return op_mem(tok.loc);
+    } else if (kw.compare(",") == 0) {
+        return op_load(tok.loc);
+    } else if (kw.compare(".") == 0) {
+        return op_store(tok.loc);
     } else if (kw.compare("DUMP") == 0) {
         return op_dump(tok.loc);
     }
