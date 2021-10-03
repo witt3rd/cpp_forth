@@ -16,6 +16,10 @@
 
 static const auto MEM_CAPACITY = 640 * 1024;
 
+#define STACK_T int64_t// simulated stack
+#define MEM_T uint8_t  // simulated memory
+#define ADDR_T int64_t // virtual addresses (cross-refs)
+
 enum class op_t { PUSH,
                   PLUS,
                   MINUS,
@@ -93,22 +97,24 @@ op op_load(loc loc) { return op{.type = op_t::LOAD, .loc = loc}; }
 op op_store(loc loc) { return op{.type = op_t::STORE, .loc = loc}; }
 op op_dump(loc loc) { return op{.type = op_t::DUMP, .loc = loc}; }
 
-inline const int64_t pop(std::vector<int64_t>& stack) {
+template<typename T>
+inline const T pop(std::vector<T>& stack) {
     auto x = stack.back();
     stack.pop_back();
     return x;
 }
 
-inline void push(std::vector<int64_t>& stack, const int64_t x) { stack.push_back(x); }
+template<typename T>
+inline void push(std::vector<T>& stack, const T x) { stack.push_back(x); }
 
 void simulate(std::vector<op> program) {
     auto is_trace{false};
 
     // simulate the stack
-    std::vector<int64_t> stack;
+    std::vector<STACK_T> stack;
 
     // simulate memory
-    std::vector<uint8_t> mem;
+    std::vector<MEM_T> mem;
     mem.reserve(MEM_CAPACITY);
 
     uint64_t ip{0};
@@ -139,21 +145,21 @@ void simulate(std::vector<op> program) {
                 auto b = pop(stack);
                 auto a = pop(stack);
                 if (is_trace) std::cout << fmt::format("$ {} == {}: {}", a, b, a == b) << std::endl;
-                push(stack, a == b);
+                push(stack, static_cast<STACK_T>(a == b));
                 break;
             }
             case op_t::GT: {
                 auto b = pop(stack);
                 auto a = pop(stack);
                 if (is_trace) std::cout << fmt::format("$ {} > {}: {}", a, b, a > b) << std::endl;
-                push(stack, a > b);
+                push(stack, static_cast<STACK_T>(a > b));
                 break;
             }
             case op_t::LT: {
                 auto b = pop(stack);
                 auto a = pop(stack);
                 if (is_trace) std::cout << fmt::format("$ {} < {}: {}", a, b, a < b) << std::endl;
-                push(stack, a < b);
+                push(stack, static_cast<STACK_T>(a < b));
                 break;
             }
             case op_t::IF: {
@@ -196,13 +202,13 @@ void simulate(std::vector<op> program) {
                 break;
             }
             case op_t::MEM: {
-                push(stack, 0);
+                push(stack, static_cast<STACK_T>(0));
                 break;
             }
             case op_t::LOAD: {
                 auto addr = pop(stack);
                 auto byte = mem[addr];
-                push(stack, byte);
+                push(stack, static_cast<STACK_T>(byte));
                 break;
             }
             case op_t::STORE: {
@@ -254,7 +260,7 @@ void compile(std::vector<op> program, std::string& output_path) {
     output << "global _start" << std::endl;
     output << "_start:" << std::endl;
 
-    uint64_t ip{0};
+    ADDR_T ip{0};
     while (ip < program.size()) {
         const op& o{program[ip]};
         //std::cout << fmt::format("{}: {}", ip, format_op(o)) << std::endl;
@@ -396,23 +402,22 @@ void compile(std::vector<op> program, std::string& output_path) {
 
 std::vector<op>& cross_reference(std::vector<op>& program) {
     auto is_trace{false};
-    std::vector<uint64_t> ip_stack;
-    uint64_t ip{0};
+    std::vector<ADDR_T> ip_stack;
+    ADDR_T ip{0};
     while (ip < program.size()) {
         op& o{program[ip]};
         switch (o.type) {
 
             case op_t::IF: {
-                ip_stack.push_back(ip);
+                push(ip_stack, ip);
                 break;
             }
             case op_t::ELSE: {
-                auto iff_ip = ip_stack.back();
-                ip_stack.pop_back();
-                op& iff_op = program[iff_ip];
+                auto iff_ip = pop(ip_stack);
+                op& iff_op  = program[iff_ip];
                 if (is_trace) std::cout << fmt::format("ELSE @ {} matched with {} @ {}", ip, op_t_names[iff_op.type], iff_ip) << std::endl;
-                iff_op.jmp = ip + 1;   // IF will jump to instruction _after_ ELSE when fail
-                ip_stack.push_back(ip);// save the ELSE ip for END
+                iff_op.jmp = ip + 1;// IF will jump to instruction _after_ ELSE when fail
+                push(ip_stack, ip); // save the ELSE ip for END
                 break;
             }
             case op_t::END: {
@@ -420,9 +425,8 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
                 // - executing the success branch of an IF with no ELSE -> jump to next instruction
                 // - the failure branch of an IF with an ELSE -> jump to next instruction
                 // - WHILE loop -> jump back to condition
-                auto block_ip = ip_stack.back();// IF, ELSE, DO, ...
-                ip_stack.pop_back();
-                op& block_op = program[block_ip];
+                auto block_ip = pop(ip_stack);// IF, ELSE, DO, ...
+                op& block_op  = program[block_ip];
                 if (is_trace) std::cout << fmt::format("END @ {} matched with {} @ {}", ip, op_t_names[block_op.type], block_ip) << std::endl;
                 if (block_op.type == op_t::IF || block_op.type == op_t::ELSE) {
                     o.jmp        = ip + 1;// Update END to jump to next instruction
@@ -437,16 +441,15 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
                 break;
             }
             case op_t::WHILE: {
-                ip_stack.push_back(ip);// save the WHILE ip for DO
+                push(ip_stack, ip);// save the WHILE ip for DO
                 break;
             }
             case op_t::DO: {
-                auto wile_ip = ip_stack.back();
-                ip_stack.pop_back();
-                op& wile_op = program[wile_ip];
+                auto wile_ip = pop(ip_stack);
+                op& wile_op  = program[wile_ip];
                 if (is_trace) std::cout << fmt::format("DO @ {} matched with {} @ {}", ip, op_t_names[wile_op.type], wile_ip) << std::endl;
-                o.jmp = wile_ip;       // record the WHILE ip
-                ip_stack.push_back(ip);// save the DO ip for END
+                o.jmp = wile_ip;   // record the WHILE ip
+                push(ip_stack, ip);// save the DO ip for END
                 break;
             }
             default:
