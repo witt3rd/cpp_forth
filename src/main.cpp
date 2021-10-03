@@ -143,7 +143,7 @@ void simulate(std::vector<op> program) {
                 break;
             }
             case op_t::end: {
-                // when we hit an END, jump to its saves ip
+                // when we hit an END, jump to its saved ip
                 ip = o.arg;
                 break;
             }
@@ -214,6 +214,7 @@ void compile(std::vector<op> program, std::string& output_path) {
     while (ip < program.size()) {
         const op& o{program[ip]};
         //std::cout << fmt::format("{}: {}", ip, format_op(o)) << std::endl;
+        output << "addr_" << ip << ":" << std::endl;
         ip++;
         switch (o.type) {
             case op_t::push:
@@ -233,7 +234,7 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    pop rbx" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    sub rax, rbx" << std::endl;
-                output << "    push rbx" << std::endl;
+                output << "    push rax" << std::endl;
                 break;
             }
             case op_t::equal: {
@@ -279,18 +280,24 @@ void compile(std::vector<op> program, std::string& output_path) {
             case op_t::elze: {
                 output << "    ;; -- else --" << std::endl;
                 output << "    jmp addr_" << o.arg << std::endl;
-                output << "addr_" << ip << ":" << std::endl;
                 break;
             }
             case op_t::end: {
                 output << "    ;; -- end --" << std::endl;
-                output << "addr_" << ip << ":" << std::endl;
+                if (ip + 1 != o.arg) {
+                    output << "    jmp addr_" << o.arg << std::endl;
+                }
                 break;
             }
             case op_t::wile: {
+                output << "    ;; -- while --" << std::endl;
                 break;
             }
             case op_t::doo: {
+                output << "    ;; -- do --" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    test rax, rax" << std::endl;
+                output << "    jz addr_" << o.arg << std::endl;
                 break;
             }
             case op_t::dup: {
@@ -317,6 +324,7 @@ void compile(std::vector<op> program, std::string& output_path) {
 }
 
 std::vector<op>& cross_reference(std::vector<op>& program) {
+    auto is_trace{false};
     std::vector<uint64_t> ip_stack;
     uint64_t ip{0};
     while (ip < program.size()) {
@@ -331,7 +339,7 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
                 auto iff_ip = ip_stack.back();
                 ip_stack.pop_back();
                 op& iff_op = program[iff_ip];
-                std::cout << fmt::format("ELSE @ {} matched with {} @ {}", ip, op_t_names[iff_op.type], iff_ip) << std::endl;
+                if (is_trace) std::cout << fmt::format("ELSE @ {} matched with {} @ {}", ip, op_t_names[iff_op.type], iff_ip) << std::endl;
                 iff_op.arg = ip + 1;   // IF will jump to instruction _after_ ELSE when fail
                 ip_stack.push_back(ip);// save the ELSE ip for END
                 break;
@@ -344,7 +352,7 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
                 auto block_ip = ip_stack.back();
                 ip_stack.pop_back();
                 op& block_op = program[block_ip];
-                std::cout << fmt::format("END @ {} matched with {} @ {}", ip, op_t_names[block_op.type], block_ip) << std::endl;
+                if (is_trace) std::cout << fmt::format("END @ {} matched with {} @ {}", ip, op_t_names[block_op.type], block_ip) << std::endl;
                 if (block_op.type == op_t::iff || block_op.type == op_t::elze) {
                     block_op.arg = ip + 1;// jump to instruction _after_ END
                 } else if (block_op.type == op_t::doo) {
@@ -364,7 +372,7 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
                 auto wile_ip = ip_stack.back();
                 ip_stack.pop_back();
                 op& wile_op = program[wile_ip];
-                std::cout << fmt::format("DO @ {} matched with {} @ {}", ip, op_t_names[wile_op.type], wile_ip) << std::endl;
+                if (is_trace) std::cout << fmt::format("DO @ {} matched with {} @ {}", ip, op_t_names[wile_op.type], wile_ip) << std::endl;
                 o.arg = wile_ip;       // record the WHILE ip
                 ip_stack.push_back(ip);// save the DO ip for END
                 break;
