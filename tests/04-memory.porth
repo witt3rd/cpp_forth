@@ -7,3 +7,8 @@ mem 2 + 99 .
 mem 0 + dup , 1 + .
 mem 1 + dup , 1 + .
 mem 2 + dup , 1 + .
+
+// print "bcd"
+mem 0 + , dump
+mem 1 + , dump
+mem 2 + , dump

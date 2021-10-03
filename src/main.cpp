@@ -103,7 +103,14 @@ inline void push(std::vector<int64_t>& stack, const int64_t x) { stack.push_back
 
 void simulate(std::vector<op> program) {
     auto is_trace{false};
+
+    // simulate the stack
     std::vector<int64_t> stack;
+
+    // simulate memory
+    std::vector<uint8_t> mem;
+    mem.reserve(MEM_CAPACITY);
+
     uint64_t ip{0};
     while (ip < program.size()) {
         const op& o{program[ip]};
@@ -189,15 +196,19 @@ void simulate(std::vector<op> program) {
                 break;
             }
             case op_t::MEM: {
-                // TODO
+                push(stack, 0);
                 break;
             }
             case op_t::LOAD: {
-                // TODO
+                auto addr = pop(stack);
+                auto byte = mem[addr];
+                push(stack, byte);
                 break;
             }
             case op_t::STORE: {
-                // TODO
+                auto byte = pop(stack);
+                auto addr = pop(stack);
+                mem[addr] = byte & 0xff;
                 break;
             }
             case op_t::DUMP:
