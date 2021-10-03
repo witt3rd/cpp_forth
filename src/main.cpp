@@ -35,7 +35,8 @@ enum class op_t { PUSH,
                   MEM,
                   LOAD,
                   STORE,
-                  DUMP };
+                  DUMP,
+                  SYSCALL3 };
 
 std::map<op_t, std::string> op_t_names{{op_t::PUSH, "PUSH"},
                                        {op_t::PLUS, "PLUS"},
@@ -52,7 +53,8 @@ std::map<op_t, std::string> op_t_names{{op_t::PUSH, "PUSH"},
                                        {op_t::MEM, "MEM"},
                                        {op_t::LOAD, "LOAD"},
                                        {op_t::STORE, "STORE"},
-                                       {op_t::DUMP, "DUMP"}};
+                                       {op_t::DUMP, "DUMP"},
+                                       {op_t::SYSCALL3, "SYSCALL3"}};
 
 struct loc {
     std::string file_path;
@@ -96,6 +98,7 @@ op op_mem(loc loc) { return op{.type = op_t::MEM, .loc = loc}; }
 op op_load(loc loc) { return op{.type = op_t::LOAD, .loc = loc}; }
 op op_store(loc loc) { return op{.type = op_t::STORE, .loc = loc}; }
 op op_dump(loc loc) { return op{.type = op_t::DUMP, .loc = loc}; }
+op op_syscall3(loc loc) { return op{.type = op_t::SYSCALL3, .loc = loc}; }
 
 template<typename T>
 inline const T pop(std::vector<T>& stack) {
@@ -217,10 +220,14 @@ void simulate(std::vector<op> program) {
                 mem[addr] = byte & 0xff;
                 break;
             }
-            case op_t::DUMP:
+            case op_t::DUMP: {
                 auto a = pop(stack);
                 std::cout << a << std::endl;
                 break;
+            }
+            case op_t::SYSCALL3: {
+                break;
+            }
         }
     }
 }
@@ -377,11 +384,21 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    mov [rax], bl" << std::endl;
                 break;
             }
-            case op_t::DUMP:
+            case op_t::DUMP: {
                 output << "    ;; -- dump --" << std::endl;
                 output << "    pop rdi" << std::endl;
                 output << "    call dump" << std::endl;
                 break;
+            }
+            case op_t::SYSCALL3: {
+                output << "    ;; -- syscall3 --" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    pop rdi" << std::endl;
+                output << "    pop rsi" << std::endl;
+                output << "    pop rdx" << std::endl;
+                output << "    syscall" << std::endl;
+                break;
+            }
         }
         ip++;
     }
@@ -504,6 +521,8 @@ op parse_token_as_op(const token& tok) {
         return op_store(tok.loc);
     } else if (kw.compare("DUMP") == 0) {
         return op_dump(tok.loc);
+    } else if (kw.compare("SYSCALL3") == 0) {
+        return op_syscall3(tok.loc);
     }
 
     try {
