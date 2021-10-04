@@ -22,53 +22,78 @@ static const auto MEM_CAPACITY = 640 * 1024;
 #define MEM_T char     // simulated memory
 #define ADDR_T int64_t // virtual addresses (cross-refs)
 
-enum class op_t { PUSH,
-                  PLUS,
-                  MINUS,
-                  EQUAL,
-                  GT,
-                  LT,
-                  IF,
-                  ELSE,
-                  END,
-                  DUP,
-                  DUP2,
-                  WHILE,
-                  DO,
-                  MEM,
-                  LOAD,
-                  STORE,
-                  DUMP,
-                  SYSCALL1,
-                  SYSCALL2,
-                  SYSCALL3,
-                  SYSCALL4,
-                  SYSCALL5,
-                  SYSCALL6 };
+enum class op_t {
+    // Stack
+    PUSH,
+    DUP,
+    DUP2,
+    DUMP,
+    // Arithmetic
+    PLUS,
+    MINUS,
+    EQUAL,
+    GT,
+    LT,
+    // Bitwise
+    SHR,
+    SHL,
+    BOR,
+    BAND,
+    // Conditional
+    IF,
+    ELSE,
+    END,
+    // Loop
+    WHILE,
+    DO,
+    // Memory
+    MEM,
+    LOAD,
+    STORE,
+    // System
+    SYSCALL1,
+    SYSCALL2,
+    SYSCALL3,
+    SYSCALL4,
+    SYSCALL5,
+    SYSCALL6
+};
 
-std::map<op_t, std::string> op_t_names{{op_t::PUSH, "PUSH"},
-                                       {op_t::PLUS, "PLUS"},
-                                       {op_t::MINUS, "MINUS"},
-                                       {op_t::EQUAL, "EQUAL"},
-                                       {op_t::GT, "GT"},
-                                       {op_t::LT, "LT"},
-                                       {op_t::IF, "IF"},
-                                       {op_t::ELSE, "ELSE"},
-                                       {op_t::END, "END"},
-                                       {op_t::DUP, "DUP"},
-                                       {op_t::DUP2, "2DUP"},
-                                       {op_t::WHILE, "WHILE"},
-                                       {op_t::DO, "DO"},
-                                       {op_t::MEM, "MEM"},
-                                       {op_t::LOAD, "LOAD"},
-                                       {op_t::STORE, "STORE"},
-                                       {op_t::DUMP, "DUMP"},
-                                       {op_t::SYSCALL1, "SYSCALL1"},
-                                       {op_t::SYSCALL2, "SYSCALL2"},
-                                       {op_t::SYSCALL3, "SYSCALL3"},
-                                       {op_t::SYSCALL4, "SYSCALL4"},
-                                       {op_t::SYSCALL5, "SYSCALL5"},
-                                       {op_t::SYSCALL6, "SYSCALL6"}};
+std::map<op_t, std::string> op_t_names{
+        // Stack
+        {op_t::PUSH, "PUSH"},
+        {op_t::DUP, "DUP"},
+        {op_t::DUP2, "2DUP"},
+        {op_t::DUMP, "DUMP"},
+        // Arithmetic
+        {op_t::PLUS, "PLUS"},
+        {op_t::MINUS, "MINUS"},
+        {op_t::EQUAL, "EQUAL"},
+        {op_t::GT, "GT"},
+        {op_t::LT, "LT"},
+        // Bitwise
+        {op_t::SHR, "SHR"},
+        {op_t::SHL, "SHL"},
+        {op_t::BOR, "BOR"},
+        {op_t::BAND, "BAND"},
+        // Conditional
+        {op_t::IF, "IF"},
+        {op_t::ELSE, "ELSE"},
+        {op_t::END, "END"},
+        // Loop
+        {op_t::WHILE, "WHILE"},
+        {op_t::DO, "DO"},
+        // Memory
+        {op_t::MEM, "MEM"},
+        {op_t::LOAD, "LOAD"},
+        {op_t::STORE, "STORE"},
+        // System
+        {op_t::SYSCALL1, "SYSCALL1"},
+        {op_t::SYSCALL2, "SYSCALL2"},
+        {op_t::SYSCALL3, "SYSCALL3"},
+        {op_t::SYSCALL4, "SYSCALL4"},
+        {op_t::SYSCALL5, "SYSCALL5"},
+        {op_t::SYSCALL6, "SYSCALL6"}};
 
 struct loc {
     std::string file_path;
@@ -96,23 +121,34 @@ std::string format_op(const op& o) {
     return fmt::format("type: {}, loc: {}, value: {}, jmp: {}", op_t_names[o.type], format_loc(o.loc), o.value, o.jmp);
 }
 
+// Stack
 op op_push(loc loc, int64_t value) { return op{.type = op_t::PUSH, .loc = loc, .value = value}; }
+op op_dup(loc loc) { return op{.type = op_t::DUP, .loc = loc}; }
+op op_dup2(loc loc) { return op{.type = op_t::DUP2, .loc = loc}; }
+op op_dump(loc loc) { return op{.type = op_t::DUMP, .loc = loc}; }
+// Arithmetic
 op op_plus(loc loc) { return op{.type = op_t::PLUS, .loc = loc}; }
 op op_minus(loc loc) { return op{.type = op_t::MINUS, .loc = loc}; }
 op op_equal(loc loc) { return op{.type = op_t::EQUAL, .loc = loc}; }
 op op_gt(loc loc) { return op{.type = op_t::GT, .loc = loc}; }
 op op_lt(loc loc) { return op{.type = op_t::LT, .loc = loc}; }
+// Bitwise
+op op_shr(loc loc) { return op{.type = op_t::SHR, .loc = loc}; }
+op op_shl(loc loc) { return op{.type = op_t::SHL, .loc = loc}; }
+op op_bor(loc loc) { return op{.type = op_t::BOR, .loc = loc}; }
+op op_band(loc loc) { return op{.type = op_t::BAND, .loc = loc}; }
+// Conditional
 op op_if(loc loc) { return op{.type = op_t::IF, .loc = loc}; }
 op op_else(loc loc) { return op{.type = op_t::ELSE, .loc = loc}; }
 op op_end(loc loc) { return op{.type = op_t::END, .loc = loc}; }
-op op_dup(loc loc) { return op{.type = op_t::DUP, .loc = loc}; }
-op op_dup2(loc loc) { return op{.type = op_t::DUP2, .loc = loc}; }
+// Loop
 op op_while(loc loc) { return op{.type = op_t::WHILE, .loc = loc}; }
 op op_do(loc loc) { return op{.type = op_t::DO, .loc = loc}; }
+// Memory
 op op_mem(loc loc) { return op{.type = op_t::MEM, .loc = loc}; }
 op op_load(loc loc) { return op{.type = op_t::LOAD, .loc = loc}; }
 op op_store(loc loc) { return op{.type = op_t::STORE, .loc = loc}; }
-op op_dump(loc loc) { return op{.type = op_t::DUMP, .loc = loc}; }
+// System
 op op_syscall1(loc loc) { return op{.type = op_t::SYSCALL1, .loc = loc}; }
 op op_syscall2(loc loc) { return op{.type = op_t::SYSCALL2, .loc = loc}; }
 op op_syscall3(loc loc) { return op{.type = op_t::SYSCALL3, .loc = loc}; }
@@ -145,11 +181,34 @@ void simulate(std::vector<op> program) {
         if (is_debug) std::cout << fmt::format("[DBG] {:03}[{:03}]: {}", ip, stack.size(), format_op(o)) << std::endl;
         ip++;// increment by default; may get overridden
         switch (o.type) {
-            case op_t::PUSH:
+            case op_t::PUSH: {// Stack
                 if (is_debug) std::cout << fmt::format("[DBG] PUSH {}", o.value) << std::endl;
                 push(stack, o.value);
                 break;
-            case op_t::PLUS: {
+            }
+            case op_t::DUP: {
+                auto a = pop(stack);
+                if (is_debug) std::cout << fmt::format("[DBG] DUP {}", a) << std::endl;
+                push(stack, a);
+                push(stack, a);
+                break;
+            }
+            case op_t::DUP2: {
+                auto a = pop(stack);
+                auto b = pop(stack);
+                if (is_debug) std::cout << fmt::format("[DBG] 2DUP {} {}", b, a) << std::endl;
+                push(stack, b);
+                push(stack, a);
+                push(stack, b);
+                push(stack, a);
+                break;
+            }
+            case op_t::DUMP: {
+                auto a = pop(stack);
+                std::cout << a << std::endl;
+                break;
+            }
+            case op_t::PLUS: {// Arithmetic
                 auto b = pop(stack);
                 auto a = pop(stack);
                 if (is_debug) std::cout << fmt::format("[DBG] {} + {}: {}", a, b, a + b) << std::endl;
@@ -184,7 +243,35 @@ void simulate(std::vector<op> program) {
                 push(stack, static_cast<STACK_T>(a < b));
                 break;
             }
-            case op_t::IF: {
+            case op_t::SHR: {// Bitwise
+                auto b = pop(stack);
+                auto a = pop(stack);
+                if (is_debug) std::cout << fmt::format("[DBG] {} >> {}: {}", a, b, a >> b) << std::endl;
+                push(stack, a >> b);
+                break;
+            }
+            case op_t::SHL: {
+                auto b = pop(stack);
+                auto a = pop(stack);
+                if (is_debug) std::cout << fmt::format("[DBG] {} << {}: {}", a, b, a << b) << std::endl;
+                push(stack, a << b);
+                break;
+            }
+            case op_t::BOR: {
+                auto b = pop(stack);
+                auto a = pop(stack);
+                if (is_debug) std::cout << fmt::format("[DBG] {} | {}: {}", a, b, a | b) << std::endl;
+                push(stack, a | b);
+                break;
+            }
+            case op_t::BAND: {
+                auto b = pop(stack);
+                auto a = pop(stack);
+                if (is_debug) std::cout << fmt::format("[DBG] {} & {}: {}", a, b, a & b) << std::endl;
+                push(stack, a & b);
+                break;
+            }
+            case op_t::IF: {// Conditional
                 auto a = pop(stack);
                 if (is_debug) std::cout << fmt::format("[DBG] IF {} ({})", a, a != 0) << std::endl;
                 if (a == 0) {
@@ -203,7 +290,7 @@ void simulate(std::vector<op> program) {
                 ip = o.jmp;
                 break;
             }
-            case op_t::WHILE: {
+            case op_t::WHILE: {// Loop
                 // do nothing
                 break;
             }
@@ -216,24 +303,7 @@ void simulate(std::vector<op> program) {
                 }
                 break;
             }
-            case op_t::DUP: {
-                auto a = pop(stack);
-                if (is_debug) std::cout << fmt::format("[DBG] DUP {}", a) << std::endl;
-                push(stack, a);
-                push(stack, a);
-                break;
-            }
-            case op_t::DUP2: {
-                auto a = pop(stack);
-                auto b = pop(stack);
-                if (is_debug) std::cout << fmt::format("[DBG] 2DUP {} {}", b, a) << std::endl;
-                push(stack, b);
-                push(stack, a);
-                push(stack, b);
-                push(stack, a);
-                break;
-            }
-            case op_t::MEM: {
+            case op_t::MEM: {// Memory
                 push(stack, static_cast<STACK_T>(0));
                 break;
             }
@@ -249,12 +319,7 @@ void simulate(std::vector<op> program) {
                 mem[addr] = byte & 0xff;
                 break;
             }
-            case op_t::DUMP: {
-                auto a = pop(stack);
-                std::cout << a << std::endl;
-                break;
-            }
-            case op_t::SYSCALL1: {
+            case op_t::SYSCALL1: {// System
                 auto syscall_number = pop(stack);
                 auto arg0           = pop(stack);
                 switch (syscall_number) {
@@ -407,11 +472,35 @@ void compile(std::vector<op> program, std::string& output_path) {
         if (is_debug) std::cout << fmt::format("[DBG] ip={}, op={}", ip, format_op(o)) << std::endl;
         output << "addr_" << ip << ":" << std::endl;
         switch (o.type) {
-            case op_t::PUSH:
+            case op_t::PUSH: {// Stack
                 output << "    ;; -- push %d --" << std::endl;
                 output << "    push " << o.value << std::endl;
                 break;
-            case op_t::PLUS: {
+            }
+            case op_t::DUP: {
+                output << "    ;; -- dup --" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    push rax" << std::endl;
+                output << "    push rax" << std::endl;
+                break;
+            }
+            case op_t::DUP2: {
+                output << "    ;; -- dup2 --" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    pop rbx" << std::endl;
+                output << "    push rbx" << std::endl;
+                output << "    push rax" << std::endl;
+                output << "    push rbx" << std::endl;
+                output << "    push rax" << std::endl;
+                break;
+            }
+            case op_t::DUMP: {
+                output << "    ;; -- dump --" << std::endl;
+                output << "    pop rdi" << std::endl;
+                output << "    call dump" << std::endl;
+                break;
+            }
+            case op_t::PLUS: {// Arithmetic
                 output << "    ;; -- plus --" << std::endl;
                 output << "    pop rbx" << std::endl;
                 output << "    pop rax" << std::endl;
@@ -460,7 +549,39 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    push rcx" << std::endl;
                 break;
             }
-            case op_t::IF: {
+            case op_t::SHR: {// Bitwise
+                output << "    ;; -- shr --" << std::endl;
+                output << "    pop rcx" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    shr rax, cl" << std::endl;
+                output << "    push rax" << std::endl;
+                break;
+            }
+            case op_t::SHL: {
+                output << "    ;; -- shl --" << std::endl;
+                output << "    pop rcx" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    shl rax, cl" << std::endl;
+                output << "    push rax" << std::endl;
+                break;
+            }
+            case op_t::BOR: {
+                output << "    ;; -- bor --" << std::endl;
+                output << "    pop rbx" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    or rax, rbx" << std::endl;
+                output << "    push rax" << std::endl;
+                break;
+            }
+            case op_t::BAND: {
+                output << "    ;; -- band --" << std::endl;
+                output << "    pop rbx" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    and rax, rbx" << std::endl;
+                output << "    push rax" << std::endl;
+                break;
+            }
+            case op_t::IF: {// Conditional
                 output << "    ;; -- if --" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    test rax, rax" << std::endl;
@@ -480,7 +601,7 @@ void compile(std::vector<op> program, std::string& output_path) {
                 }
                 break;
             }
-            case op_t::WHILE: {
+            case op_t::WHILE: {// Loop
                 output << "    ;; -- while --" << std::endl;
                 break;
             }
@@ -491,24 +612,7 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    jz addr_" << o.jmp << std::endl;
                 break;
             }
-            case op_t::DUP: {
-                output << "    ;; -- dup --" << std::endl;
-                output << "    pop rax" << std::endl;
-                output << "    push rax" << std::endl;
-                output << "    push rax" << std::endl;
-                break;
-            }
-            case op_t::DUP2: {
-                output << "    ;; -- dup2 --" << std::endl;
-                output << "    pop rax" << std::endl;
-                output << "    pop rbx" << std::endl;
-                output << "    push rbx" << std::endl;
-                output << "    push rax" << std::endl;
-                output << "    push rbx" << std::endl;
-                output << "    push rax" << std::endl;
-                break;
-            }
-            case op_t::MEM: {
+            case op_t::MEM: {// Memory
                 output << "    ;; -- mem --" << std::endl;
                 output << "    push mem" << std::endl;
                 break;
@@ -528,13 +632,7 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    mov [rax], bl" << std::endl;
                 break;
             }
-            case op_t::DUMP: {
-                output << "    ;; -- dump --" << std::endl;
-                output << "    pop rdi" << std::endl;
-                output << "    call dump" << std::endl;
-                break;
-            }
-            case op_t::SYSCALL1: {
+            case op_t::SYSCALL1: {// System
                 output << "    ;; -- syscall1 --" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    pop rdi" << std::endl;
@@ -683,52 +781,42 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
 op parse_token_as_op(const token& tok) {
     std::string kw = tok.word;
     std::transform(kw.begin(), kw.end(), kw.begin(), ::toupper);
-    if (kw.compare("+") == 0) {
-        return op_plus(tok.loc);
-    } else if (kw.compare("-") == 0) {
-        return op_minus(tok.loc);
-    } else if (kw.compare("=") == 0) {
-        return op_equal(tok.loc);
-    } else if (kw.compare(">") == 0) {
-        return op_gt(tok.loc);
-    } else if (kw.compare("<") == 0) {
-        return op_lt(tok.loc);
-    } else if (kw.compare("IF") == 0) {
-        return op_if(tok.loc);
-    } else if (kw.compare("ELSE") == 0) {
-        return op_else(tok.loc);
-    } else if (kw.compare("END") == 0) {
-        return op_end(tok.loc);
-    } else if (kw.compare("WHILE") == 0) {
-        return op_while(tok.loc);
-    } else if (kw.compare("DO") == 0) {
-        return op_do(tok.loc);
-    } else if (kw.compare("DUP") == 0) {
-        return op_dup(tok.loc);
-    } else if (kw.compare("2DUP") == 0) {
-        return op_dup2(tok.loc);
-    } else if (kw.compare("MEM") == 0) {
-        return op_mem(tok.loc);
-    } else if (kw.compare(",") == 0) {
-        return op_load(tok.loc);
-    } else if (kw.compare(".") == 0) {
-        return op_store(tok.loc);
-    } else if (kw.compare("DUMP") == 0) {
-        return op_dump(tok.loc);
-    } else if (kw.compare("SYSCALL1") == 0) {
-        return op_syscall1(tok.loc);
-    } else if (kw.compare("SYSCALL2") == 0) {
-        return op_syscall2(tok.loc);
-    } else if (kw.compare("SYSCALL3") == 0) {
-        return op_syscall3(tok.loc);
-    } else if (kw.compare("SYSCALL4") == 0) {
-        return op_syscall4(tok.loc);
-    } else if (kw.compare("SYSCALL5") == 0) {
-        return op_syscall5(tok.loc);
-    } else if (kw.compare("SYSCALL6") == 0) {
-        return op_syscall6(tok.loc);
-    }
 
+    // Stack
+    if (kw.compare("DUP") == 0) return op_dup(tok.loc);
+    if (kw.compare("2DUP") == 0) return op_dup2(tok.loc);
+    if (kw.compare("DUMP") == 0) return op_dump(tok.loc);
+    // Arithmetic
+    if (kw.compare("+") == 0) return op_plus(tok.loc);
+    if (kw.compare("-") == 0) return op_minus(tok.loc);
+    if (kw.compare("=") == 0) return op_equal(tok.loc);
+    if (kw.compare(">") == 0) return op_gt(tok.loc);
+    if (kw.compare("<") == 0) return op_lt(tok.loc);
+    // Bitwise
+    if (kw.compare("SHR") == 0) return op_shr(tok.loc);
+    if (kw.compare("SHL") == 0) return op_shl(tok.loc);
+    if (kw.compare("BOR") == 0) return op_bor(tok.loc);
+    if (kw.compare("BAND") == 0) return op_band(tok.loc);
+    // Conditional
+    if (kw.compare("IF") == 0) return op_if(tok.loc);
+    if (kw.compare("ELSE") == 0) return op_else(tok.loc);
+    if (kw.compare("END") == 0) return op_end(tok.loc);
+    // Loop
+    if (kw.compare("WHILE") == 0) return op_while(tok.loc);
+    if (kw.compare("DO") == 0) return op_do(tok.loc);
+    // Memory
+    if (kw.compare("MEM") == 0) return op_mem(tok.loc);
+    if (kw.compare(",") == 0) return op_load(tok.loc);
+    if (kw.compare(".") == 0) return op_store(tok.loc);
+    // System
+    if (kw.compare("SYSCALL1") == 0) return op_syscall1(tok.loc);
+    if (kw.compare("SYSCALL2") == 0) return op_syscall2(tok.loc);
+    if (kw.compare("SYSCALL3") == 0) return op_syscall3(tok.loc);
+    if (kw.compare("SYSCALL4") == 0) return op_syscall4(tok.loc);
+    if (kw.compare("SYSCALL5") == 0) return op_syscall5(tok.loc);
+    if (kw.compare("SYSCALL6") == 0) return op_syscall6(tok.loc);
+
+    // Default stack push
     try {
         auto value = std::stoll(tok.word);
         return op_push(tok.loc, value);
