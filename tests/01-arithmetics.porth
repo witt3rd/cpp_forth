@@ -1,0 +1,6 @@
+34 35 + dump // this is a comment
+500 80 - dump
+10 20 + dump
+10 20 = dump
+4 3 > dump
+3 4 < dump

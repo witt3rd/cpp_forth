@@ -1,61 +1,30 @@
-# Forth
+# Porth++
+
+ [![](https://img.shields.io/github/issues-raw/witt3rd/cpp_porth.svg?style=flat-square)](https://github.com/witt3rd/cpp_porth/issues)
+[![MIT](http://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
+
 
 Port of [Tsoding's Porth](https://github.com/tsoding/porth) simulator/compiler from Python to CPP.
 
-## Quick Start
+## Build
 
-``` shell
-./porth++ sim ../examples/test.porth
-./porth++ com ../examples/test.porth
-../examples/test
+``` sh
+cmake -DCMAKE_BUILD_TYPE=Debug -B build
+cd build
+make
 ```
 
-## Words
+## Run
 
-### `<x> (PUSH)`
+### Simulate
 
-By default, any word that is not a keyword is pushed onto the stack.
-
-#### Example
-
-``` forth
-69 420
+``` sh
+./porth++ sim ../tests/01-arithmetics.porth
 ```
 
-will result in the values `69` and `420` being pushed onto the stack.
+### Compile
 
-### `. (DUMP)`
-
-Pop and display the top value on the stack.
-
-#### Example
-
-``` forth
-69 .
+``` sh
+./porth++ com ../tests/01-arithmetics.porth
+../01-arithmetics
 ```
-
-Pushes the value `69` onto the stack, then pops and displays it.
-
-### `+ (PLUS)`
-
-Pops two values from the stack, adds them, and pushes the result onto the stack.
-
-#### Example
-
-``` forth
-34 35 + .
-```
-
-Pushes the values `34` and `35` onto the stack, pops and adds them, pushes the value `69` onto the stack, pops and displays it.
-
-### `- (MINUS)`
-
-Pops two values from the stack, subtracts the first from the second, and pushes the result onto the stack.
-
-#### Example
-
-``` forth
-500 80 - .
-```
-
-Pushes the values `500` and `80` onto the stack, pops and subtracts them, pushes the value `420` onto the stack, pops and displays it.
