@@ -14,6 +14,8 @@
 #include <string_view>
 #include <vector>
 
+bool is_debug = false;
+
 static const auto MEM_CAPACITY = 640 * 1024;
 
 #define STACK_T int64_t// simulated stack
@@ -87,7 +89,7 @@ struct token {
 };
 
 std::string format_loc(const loc& loc) {
-    return fmt::format("{}({}:{})", loc.file_path, loc.row, loc.col);
+    return fmt::format("{}({:03}:{:03})", loc.file_path, loc.row, loc.col);
 }
 
 std::string format_op(const op& o) {
@@ -129,7 +131,6 @@ template<typename T>
 inline void push(std::vector<T>& stack, const T x) { stack.push_back(x); }
 
 void simulate(std::vector<op> program) {
-    auto is_trace{false};
 
     // simulate the stack
     std::vector<STACK_T> stack;
@@ -141,51 +142,51 @@ void simulate(std::vector<op> program) {
     uint64_t ip{0};
     while (ip < program.size()) {
         const op& o{program[ip]};
-        if (is_trace) std::cout << fmt::format("{:03}[{:03}]: {}", ip, stack.size(), format_op(o)) << std::endl;
+        if (is_debug) std::cout << fmt::format("[DBG] {:03}[{:03}]: {}", ip, stack.size(), format_op(o)) << std::endl;
         ip++;// increment by default; may get overridden
         switch (o.type) {
             case op_t::PUSH:
-                if (is_trace) std::cout << fmt::format("$ PUSH {}", o.value) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] PUSH {}", o.value) << std::endl;
                 push(stack, o.value);
                 break;
             case op_t::PLUS: {
                 auto b = pop(stack);
                 auto a = pop(stack);
-                if (is_trace) std::cout << fmt::format("$ {} + {}: {}", a, b, a + b) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] {} + {}: {}", a, b, a + b) << std::endl;
                 push(stack, a + b);
                 break;
             }
             case op_t::MINUS: {
                 auto b = pop(stack);
                 auto a = pop(stack);
-                if (is_trace) std::cout << fmt::format("$ {} - {}: {}", a, b, a - b) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] {} - {}: {}", a, b, a - b) << std::endl;
                 push(stack, a - b);
                 break;
             }
             case op_t::EQUAL: {
                 auto b = pop(stack);
                 auto a = pop(stack);
-                if (is_trace) std::cout << fmt::format("$ {} == {}: {}", a, b, a == b) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] {} == {}: {}", a, b, a == b) << std::endl;
                 push(stack, static_cast<STACK_T>(a == b));
                 break;
             }
             case op_t::GT: {
                 auto b = pop(stack);
                 auto a = pop(stack);
-                if (is_trace) std::cout << fmt::format("$ {} > {}: {}", a, b, a > b) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] {} > {}: {}", a, b, a > b) << std::endl;
                 push(stack, static_cast<STACK_T>(a > b));
                 break;
             }
             case op_t::LT: {
                 auto b = pop(stack);
                 auto a = pop(stack);
-                if (is_trace) std::cout << fmt::format("$ {} < {}: {}", a, b, a < b) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] {} < {}: {}", a, b, a < b) << std::endl;
                 push(stack, static_cast<STACK_T>(a < b));
                 break;
             }
             case op_t::IF: {
                 auto a = pop(stack);
-                if (is_trace) std::cout << fmt::format("$ IF {} ({})", a, a != 0) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] IF {} ({})", a, a != 0) << std::endl;
                 if (a == 0) {
                     // failed the IF condition, jump _past_ the ELSE or END
                     ip = o.jmp;
@@ -208,7 +209,7 @@ void simulate(std::vector<op> program) {
             }
             case op_t::DO: {
                 auto a = pop(stack);
-                if (is_trace) std::cout << fmt::format("$ DO {} ({})", a, a != 0) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] DO {} ({})", a, a != 0) << std::endl;
                 if (a == 0) {
                     // failed the WHILE condition, jump _past_ the END
                     ip = o.jmp;
@@ -217,7 +218,7 @@ void simulate(std::vector<op> program) {
             }
             case op_t::DUP: {
                 auto a = pop(stack);
-                if (is_trace) std::cout << fmt::format("$ DUP {}", a) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] DUP {}", a) << std::endl;
                 push(stack, a);
                 push(stack, a);
                 break;
@@ -225,7 +226,7 @@ void simulate(std::vector<op> program) {
             case op_t::DUP2: {
                 auto a = pop(stack);
                 auto b = pop(stack);
-                if (is_trace) std::cout << fmt::format("$ 2DUP {} {}", b, a) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] 2DUP {} {}", b, a) << std::endl;
                 push(stack, b);
                 push(stack, a);
                 push(stack, b);
@@ -262,7 +263,7 @@ void simulate(std::vector<op> program) {
                         std::exit(error_code);
                     }
                     default: {
-                        std::cerr << fmt::format("Unsupported SYSCALL1: {}", syscall_number) << std::endl;
+                        std::cerr << fmt::format("[ERR] Unsupported SYSCALL1: {}", syscall_number) << std::endl;
                         std::exit(1);
                     }
                 }
@@ -274,7 +275,7 @@ void simulate(std::vector<op> program) {
                 auto arg1           = pop(stack);
                 switch (syscall_number) {
                     default: {
-                        std::cerr << fmt::format("Unsupported SYSCALL2: {}", syscall_number) << std::endl;
+                        std::cerr << fmt::format("[ERR] Unsupported SYSCALL2: {}", syscall_number) << std::endl;
                         std::exit(1);
                     }
                 }
@@ -303,14 +304,14 @@ void simulate(std::vector<op> program) {
                                 break;
                             }
                             default: {
-                                std::cerr << fmt::format("Unknown fd {} for write syscall", fd) << std::endl;
+                                std::cerr << fmt::format("[ERR] Unknown fd {} for write syscall", fd) << std::endl;
                                 std::exit(1);
                             }
                         }
                         break;
                     }
                     default: {
-                        std::cerr << fmt::format("Unsupported SYSCALL3: {}: {} {} {}", syscall_number, arg0, arg2, arg1) << std::endl;
+                        std::cerr << fmt::format("[ERR] Unsupported SYSCALL3: {}: {} {} {}", syscall_number, arg0, arg2, arg1) << std::endl;
                         std::exit(1);
                     }
                 }
@@ -324,7 +325,7 @@ void simulate(std::vector<op> program) {
                 auto arg3           = pop(stack);
                 switch (syscall_number) {
                     default: {
-                        std::cerr << fmt::format("Unsupported SYSCALL4: {}", syscall_number) << std::endl;
+                        std::cerr << fmt::format("[ERR] Unsupported SYSCALL4: {}", syscall_number) << std::endl;
                         std::exit(1);
                     }
                 }
@@ -339,7 +340,7 @@ void simulate(std::vector<op> program) {
                 auto arg4           = pop(stack);
                 switch (syscall_number) {
                     default: {
-                        std::cerr << fmt::format("Unsupported SYSCALL5: {}", syscall_number) << std::endl;
+                        std::cerr << fmt::format("[ERR] Unsupported SYSCALL5: {}", syscall_number) << std::endl;
                         std::exit(1);
                     }
                 }
@@ -355,7 +356,7 @@ void simulate(std::vector<op> program) {
                 auto arg5           = pop(stack);
                 switch (syscall_number) {
                     default: {
-                        std::cerr << fmt::format("Unsupported SYSCALL6: {}", syscall_number) << std::endl;
+                        std::cerr << fmt::format("[ERR] Unsupported SYSCALL6: {}", syscall_number) << std::endl;
                         std::exit(1);
                     }
                 }
@@ -403,7 +404,7 @@ void compile(std::vector<op> program, std::string& output_path) {
     ADDR_T ip{0};
     while (ip < program.size()) {
         const op& o{program[ip]};
-        //std::cout << fmt::format("{}: {}", ip, format_op(o)) << std::endl;
+        if (is_debug) std::cout << fmt::format("[DBG] ip={}, op={}", ip, format_op(o)) << std::endl;
         output << "addr_" << ip << ":" << std::endl;
         switch (o.type) {
             case op_t::PUSH:
@@ -473,7 +474,7 @@ void compile(std::vector<op> program, std::string& output_path) {
             }
             case op_t::END: {
                 output << "    ;; -- end --" << std::endl;
-                //std::cout << fmt::format("%END: ip={}, arg={}", ip, o.arg) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] %END: ip={}, arg={}", ip, format_op(o)) << std::endl;
                 if (ip + 1 != o.jmp) {
                     output << "    jmp addr_" << o.jmp << std::endl;
                 }
@@ -610,7 +611,6 @@ void compile(std::vector<op> program, std::string& output_path) {
 }
 
 std::vector<op>& cross_reference(std::vector<op>& program) {
-    auto is_trace{false};
     std::vector<ADDR_T> ip_stack;
     ADDR_T ip{0};
     while (ip < program.size()) {
@@ -624,7 +624,7 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
             case op_t::ELSE: {
                 auto iff_ip = pop(ip_stack);
                 op& iff_op  = program[iff_ip];
-                if (is_trace) std::cout << fmt::format("ELSE @ {} matched with {} @ {}", ip, op_t_names[iff_op.type], iff_ip) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] ELSE @ {} matched with {} @ {}", ip, op_t_names[iff_op.type], iff_ip) << std::endl;
                 iff_op.jmp = ip + 1;// IF will jump to instruction _after_ ELSE when fail
                 push(ip_stack, ip); // save the ELSE ip for END
                 break;
@@ -636,7 +636,7 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
                 // - WHILE loop -> jump back to condition
                 auto block_ip = pop(ip_stack);// IF, ELSE, DO, ...
                 op& block_op  = program[block_ip];
-                if (is_trace) std::cout << fmt::format("END @ {} matched with {} @ {}", ip, op_t_names[block_op.type], block_ip) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] END @ {} matched with {} @ {}", ip, op_t_names[block_op.type], block_ip) << std::endl;
                 if (block_op.type == op_t::IF || block_op.type == op_t::ELSE) {
                     o.jmp        = ip + 1;// Update END to jump to next instruction
                     block_op.jmp = ip;    // jump to this instruction (END)
@@ -644,7 +644,7 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
                     o.jmp        = block_op.jmp;// END jumps to WHILE (stored in DO arg)
                     block_op.jmp = ip + 1;      // Update DO to jump _past_ END when fail
                 } else {
-                    std::cerr << "`END` can only close `IF`, `ELSE`, and `DO` blocks for now" << std::endl;
+                    std::cerr << "[ERR] `END` can only close `IF`, `ELSE`, and `DO` blocks for now" << std::endl;
                     std::exit(1);
                 }
                 break;
@@ -656,7 +656,7 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
             case op_t::DO: {
                 auto wile_ip = pop(ip_stack);
                 op& wile_op  = program[wile_ip];
-                if (is_trace) std::cout << fmt::format("DO @ {} matched with {} @ {}", ip, op_t_names[wile_op.type], wile_ip) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] DO @ {} matched with {} @ {}", ip, op_t_names[wile_op.type], wile_ip) << std::endl;
                 o.jmp = wile_ip;   // record the WHILE ip
                 push(ip_stack, ip);// save the DO ip for END
                 break;
@@ -668,7 +668,7 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
     }
 
     if (!ip_stack.empty()) {
-        std::cerr << "Cross reference stack is non-empty (e.g., unmatched if/else/end)" << std::endl;
+        std::cerr << "[ERR] Cross reference stack is non-empty (e.g., unmatched if/else/end)" << std::endl;
         std::exit(1);
     }
 
@@ -778,7 +778,7 @@ std::vector<token> lex_line(const std::string& file_path, const std::string& lin
 std::vector<token> lex_file(const std::string& file_path) {
     std::ifstream f(file_path);
     if (!f.is_open()) {
-        std::cerr << "Unable to open input file" << std::endl;
+        std::cerr << "[ERR] Unable to open input file" << std::endl;
         std::exit(1);
     }
 
@@ -804,43 +804,92 @@ std::vector<op> load_program_from_file(const std::string& file_path) {
     std::vector<op> program;
     program.reserve(tokens.size());
     for (auto& tok : tokens) {
-        //std::cout << fmt::format("{}({:03},{:03}): {}", tok.file_path, tok.row, tok.col, tok.word) << std::endl;
+        if (is_debug) std::cout << fmt::format("[DBG] {}: {}", format_loc(tok.loc), tok.word) << std::endl;
         program.push_back(parse_token_as_op(tok));
     }
 
     return cross_reference(program);
 }
 
-[[noreturn]] void usage(const std::string_view& forth_name) {
-    std::cout << fmt::format("Usage: {} <SUBCOMMAND> <INPUT FILE PATH> [ARGS]", forth_name) << std::endl;
-    std::cout << "SUBCOMMANDS: " << std::endl;
-    std::cout << "    sim      Simulate the program" << std::endl;
-    std::cout << "    com      Compile the program" << std::endl;
+[[noreturn]] void usage(const std::string_view& compiler_name) {
+    std::cout << fmt::format("Usage: {} [OPTIONS] <SUBCOMMAND> [ARGS]", compiler_name) << std::endl;
+    std::cout << "  OPTIONS:" << std::endl;
+    std::cout << "    -debug                Enable debug mode." << std::endl;
+    //std::cout << "    -I <path>             Add the path to the include search list" << std::endl;
+    //std::cout << fmt::format("    -E <expansion-limit>  Macro and include expansion limit. (Default {})", DEFAULT_EXPANSION_LIMIT) << std::endl;
+    //std::cout << "    -unsafe               Disable type checking." << std::endl;
+    std::cout << "  SUBCOMMAND:" << std::endl;
+    std::cout << "    sim <file>            Simulate the program" << std::endl;
+    std::cout << "    com [OPTIONS] <file>  Compile the program" << std::endl;
+    std::cout << "      OPTIONS:" << std::endl;
+    std::cout << "        -r                  Run the program after successful compilation" << std::endl;
+    //std::cout << "        -o <file|dir>       Customize the output path" << std::endl;
+    //std::cout << "        -s                  Silent mode. Don't print any info about compilation phases." << std::endl;
+    //std::cout << "    help                  Print this help to stdout and exit with 0 code" << std::endl;
     std::exit(1);
 }
 
 int main(int argc, char** argv) {
 
     auto cur_arg{0};
-    const std::string forth_name{argv[cur_arg++]};
+    const std::string compiler_name{argv[cur_arg++]};
+
+    // options
+    while (cur_arg < argc) {
+        const std::string arg = argv[cur_arg];
+        if (arg == "-debug") {
+            is_debug = true;
+            std::cout << "[DBG] Debug enabled" << std::endl;
+            cur_arg++;
+        } else if (arg.starts_with("-")) {
+            std::cerr << fmt::format("[ERR] Unknown option: {}", arg) << std::endl;
+            usage(compiler_name);
+        } else {
+            break;
+        }
+    }
 
     if (argc <= cur_arg) {
-        std::cerr << ">>> Missing subcommand" << std::endl;
-        usage(forth_name);
+        std::cerr << "[ERR] Missing subcommand" << std::endl;
+        usage(compiler_name);
     }
+
     const std::string subcommand{argv[cur_arg++]};
 
-    if (argc <= cur_arg) {
-        std::cerr << ">>> Missing input file path" << std::endl;
-        usage(forth_name);
-    }
-    const std::string input_file_path{argv[cur_arg++]};
-
-    const std::vector<op> input_program = load_program_from_file(std::string{input_file_path});
-
     if (subcommand == "sim") {
+        if (argc <= cur_arg) {
+            std::cerr << "[ERR] Missing input file path for simulation" << std::endl;
+            usage(compiler_name);
+        }
+        const std::string input_file_path{argv[cur_arg++]};
+
+        const std::vector<op> input_program = load_program_from_file(std::string{input_file_path});
         simulate(input_program);
+
     } else if (subcommand == "com") {
+        // options
+        auto is_run{false};
+        while (cur_arg < argc) {
+            const std::string arg = argv[cur_arg];
+            if (arg == "-r") {
+                is_run = true;
+                if (is_debug) std::cout << "[DBG] Run enabled" << std::endl;
+                cur_arg++;
+            } else if (arg.starts_with("-")) {
+                std::cerr << fmt::format("[ERR] Unknown option: {}", arg) << std::endl;
+                usage(compiler_name);
+            } else {
+                break;
+            }
+        }
+
+        if (argc <= cur_arg) {
+            std::cerr << "[ERR] Missing input file path for compilation" << std::endl;
+            usage(compiler_name);
+        }
+        const std::string input_file_path{argv[cur_arg++]};
+
+        const std::vector<op> input_program = load_program_from_file(std::string{input_file_path});
         std::filesystem::path p(input_file_path);
         p.replace_extension("");
         auto output_file_path{p.string()};
@@ -848,25 +897,37 @@ int main(int argc, char** argv) {
         auto assembler_file_path = fmt::format("{}.asm", output_file_path);
         compile(input_program, assembler_file_path);
         auto assembler_command = fmt::format("nasm -felf64 {}", assembler_file_path);
-        std::cout << assembler_command << std::endl;
+        std::cout << fmt::format("[CMD] {}", assembler_command) << std::endl;
         auto res = raymii::Command::exec(assembler_command);
         if (res.exitstatus != 0) {
-            std::cout << fmt::format("nasm exited with {}: {}", res.exitstatus, res.output) << std::endl;
+            std::cerr << fmt::format("[ERR] nasm exited with {}: {}", res.exitstatus, res.output) << std::endl;
             return res.exitstatus;
         }
 
         // link
         auto assembler_output_file_path = fmt::format("{}.o", output_file_path);
         auto linker_command             = fmt::format("ld -o {} {}", output_file_path, assembler_output_file_path);
-        std::cout << linker_command << std::endl;
+        std::cout << fmt::format("[CMD] {}", linker_command) << std::endl;
         res = raymii::Command::exec(linker_command);
         if (res.exitstatus != 0) {
-            std::cout << fmt::format("ld exited with {}: {}", res.exitstatus, res.output) << std::endl;
+            std::cerr << fmt::format("[ERR] ld exited with {}: {}", res.exitstatus, res.output) << std::endl;
             return res.exitstatus;
         }
+
+        // run
+        if (is_run) {
+            auto run_command = fmt::format("{}", output_file_path);// TODO: args
+            std::cout << fmt::format("[CMD] {}", run_command) << std::endl;
+            res = raymii::Command::exec(run_command);
+            if (res.exitstatus != 0) {
+                std::cerr << fmt::format("[ERR] program exited with {}: {}", res.exitstatus, res.output) << std::endl;
+                return res.exitstatus;
+            }
+            std::cout << res.output;
+        }
     } else {
-        std::cerr << fmt::format(">>> Unknown subcommand: {}", subcommand) << std::endl;
-        usage(forth_name);
+        std::cerr << fmt::format("[ERR] Unknown subcommand: {}", subcommand) << std::endl;
+        usage(compiler_name);
     }
 
     return 0;
