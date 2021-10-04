@@ -27,6 +27,7 @@ enum class op_t {
     PUSH,
     DUP,
     DUP2,
+    DROP,
     DUMP,
     // Arithmetic
     PLUS,
@@ -64,6 +65,7 @@ std::map<op_t, std::string> op_t_names{
         {op_t::PUSH, "PUSH"},
         {op_t::DUP, "DUP"},
         {op_t::DUP2, "2DUP"},
+        {op_t::DROP, "DROP"},
         {op_t::DUMP, "DUMP"},
         // Arithmetic
         {op_t::PLUS, "PLUS"},
@@ -125,6 +127,7 @@ std::string format_op(const op& o) {
 op op_push(loc loc, int64_t value) { return op{.type = op_t::PUSH, .loc = loc, .value = value}; }
 op op_dup(loc loc) { return op{.type = op_t::DUP, .loc = loc}; }
 op op_dup2(loc loc) { return op{.type = op_t::DUP2, .loc = loc}; }
+op op_drop(loc loc) { return op{.type = op_t::DROP, .loc = loc}; }
 op op_dump(loc loc) { return op{.type = op_t::DUMP, .loc = loc}; }
 // Arithmetic
 op op_plus(loc loc) { return op{.type = op_t::PLUS, .loc = loc}; }
@@ -201,6 +204,10 @@ void simulate(std::vector<op> program) {
                 push(stack, a);
                 push(stack, b);
                 push(stack, a);
+                break;
+            }
+            case op_t::DROP: {
+                auto a = pop(stack);
                 break;
             }
             case op_t::DUMP: {
@@ -494,6 +501,11 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    push rax" << std::endl;
                 break;
             }
+            case op_t::DROP: {
+                output << "    ;; -- drop --" << std::endl;
+                output << "    pop rax" << std::endl;
+                break;
+            }
             case op_t::DUMP: {
                 output << "    ;; -- dump --" << std::endl;
                 output << "    pop rdi" << std::endl;
@@ -785,6 +797,7 @@ op parse_token_as_op(const token& tok) {
     // Stack
     if (kw.compare("DUP") == 0) return op_dup(tok.loc);
     if (kw.compare("2DUP") == 0) return op_dup2(tok.loc);
+    if (kw.compare("DROP") == 0) return op_drop(tok.loc);
     if (kw.compare("DUMP") == 0) return op_dump(tok.loc);
     // Arithmetic
     if (kw.compare("+") == 0) return op_plus(tok.loc);
