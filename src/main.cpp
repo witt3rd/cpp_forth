@@ -30,6 +30,7 @@ enum class op_t { PUSH,
                   ELSE,
                   END,
                   DUP,
+                  DUP2,
                   WHILE,
                   DO,
                   MEM,
@@ -53,6 +54,7 @@ std::map<op_t, std::string> op_t_names{{op_t::PUSH, "PUSH"},
                                        {op_t::ELSE, "ELSE"},
                                        {op_t::END, "END"},
                                        {op_t::DUP, "DUP"},
+                                       {op_t::DUP2, "2DUP"},
                                        {op_t::WHILE, "WHILE"},
                                        {op_t::DO, "DO"},
                                        {op_t::MEM, "MEM"},
@@ -102,6 +104,7 @@ op op_if(loc loc) { return op{.type = op_t::IF, .loc = loc}; }
 op op_else(loc loc) { return op{.type = op_t::ELSE, .loc = loc}; }
 op op_end(loc loc) { return op{.type = op_t::END, .loc = loc}; }
 op op_dup(loc loc) { return op{.type = op_t::DUP, .loc = loc}; }
+op op_dup2(loc loc) { return op{.type = op_t::DUP2, .loc = loc}; }
 op op_while(loc loc) { return op{.type = op_t::WHILE, .loc = loc}; }
 op op_do(loc loc) { return op{.type = op_t::DO, .loc = loc}; }
 op op_mem(loc loc) { return op{.type = op_t::MEM, .loc = loc}; }
@@ -216,6 +219,16 @@ void simulate(std::vector<op> program) {
                 auto a = pop(stack);
                 if (is_trace) std::cout << fmt::format("$ DUP {}", a) << std::endl;
                 push(stack, a);
+                push(stack, a);
+                break;
+            }
+            case op_t::DUP2: {
+                auto a = pop(stack);
+                auto b = pop(stack);
+                if (is_trace) std::cout << fmt::format("$ 2DUP {} {}", b, a) << std::endl;
+                push(stack, b);
+                push(stack, a);
+                push(stack, b);
                 push(stack, a);
                 break;
             }
@@ -484,6 +497,16 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    push rax" << std::endl;
                 break;
             }
+            case op_t::DUP2: {
+                output << "    ;; -- dup2 --" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    pop rbx" << std::endl;
+                output << "    push rbx" << std::endl;
+                output << "    push rax" << std::endl;
+                output << "    push rbx" << std::endl;
+                output << "    push rax" << std::endl;
+                break;
+            }
             case op_t::MEM: {
                 output << "    ;; -- mem --" << std::endl;
                 output << "    push mem" << std::endl;
@@ -572,6 +595,7 @@ void compile(std::vector<op> program, std::string& output_path) {
     }
 
     // program exit
+    output << "addr_" << ip << ":" << std::endl;
     output << "    ;; -- exit --" << std::endl;
     output << "    mov rax, 60" << std::endl;
     output << "    mov rdi, 0" << std::endl;
@@ -681,6 +705,8 @@ op parse_token_as_op(const token& tok) {
         return op_do(tok.loc);
     } else if (kw.compare("DUP") == 0) {
         return op_dup(tok.loc);
+    } else if (kw.compare("2DUP") == 0) {
+        return op_dup2(tok.loc);
     } else if (kw.compare("MEM") == 0) {
         return op_mem(tok.loc);
     } else if (kw.compare(",") == 0) {
