@@ -17,7 +17,7 @@
 static const auto MEM_CAPACITY = 640 * 1024;
 
 #define STACK_T int64_t// simulated stack
-#define MEM_T uint8_t  // simulated memory
+#define MEM_T char     // simulated memory
 #define ADDR_T int64_t // virtual addresses (cross-refs)
 
 enum class op_t { PUSH,
@@ -241,21 +241,111 @@ void simulate(std::vector<op> program) {
                 break;
             }
             case op_t::SYSCALL1: {
+                auto syscall_number = pop(stack);
+                auto arg0           = pop(stack);
+                switch (syscall_number) {
+                    case 60: {// exit
+                        auto error_code = arg0;
+                        std::exit(error_code);
+                    }
+                    default: {
+                        std::cerr << fmt::format("Unsupported SYSCALL1: {}", syscall_number) << std::endl;
+                        std::exit(1);
+                    }
+                }
                 break;
             }
             case op_t::SYSCALL2: {
+                auto syscall_number = pop(stack);
+                auto arg0           = pop(stack);
+                auto arg1           = pop(stack);
+                switch (syscall_number) {
+                    default: {
+                        std::cerr << fmt::format("Unsupported SYSCALL2: {}", syscall_number) << std::endl;
+                        std::exit(1);
+                    }
+                }
                 break;
             }
             case op_t::SYSCALL3: {
+                auto syscall_number = pop(stack);
+                auto arg0           = pop(stack);
+                auto arg1           = pop(stack);
+                auto arg2           = pop(stack);
+                switch (syscall_number) {
+                    case 1: {// write
+                        auto fd    = arg0;
+                        auto buf   = arg1;
+                        auto count = arg2;
+                        auto begin = mem.begin() + buf;
+                        auto end   = mem.begin() + (buf + count);
+                        auto s     = std::string_view(begin, end);
+                        switch (fd) {
+                            case 1: {
+                                std::cout << s;
+                                break;
+                            }
+                            case 2: {
+                                std::cerr << s;
+                                break;
+                            }
+                            default: {
+                                std::cerr << fmt::format("Unknown fd {} for write syscall", fd) << std::endl;
+                                std::exit(1);
+                            }
+                        }
+                        break;
+                    }
+                    default: {
+                        std::cerr << fmt::format("Unsupported SYSCALL3: {}: {} {} {}", syscall_number, arg0, arg2, arg1) << std::endl;
+                        std::exit(1);
+                    }
+                }
                 break;
             }
             case op_t::SYSCALL4: {
+                auto syscall_number = pop(stack);
+                auto arg0           = pop(stack);
+                auto arg1           = pop(stack);
+                auto arg2           = pop(stack);
+                auto arg3           = pop(stack);
+                switch (syscall_number) {
+                    default: {
+                        std::cerr << fmt::format("Unsupported SYSCALL4: {}", syscall_number) << std::endl;
+                        std::exit(1);
+                    }
+                }
                 break;
             }
             case op_t::SYSCALL5: {
+                auto syscall_number = pop(stack);
+                auto arg0           = pop(stack);
+                auto arg1           = pop(stack);
+                auto arg2           = pop(stack);
+                auto arg3           = pop(stack);
+                auto arg4           = pop(stack);
+                switch (syscall_number) {
+                    default: {
+                        std::cerr << fmt::format("Unsupported SYSCALL5: {}", syscall_number) << std::endl;
+                        std::exit(1);
+                    }
+                }
                 break;
             }
             case op_t::SYSCALL6: {
+                auto syscall_number = pop(stack);
+                auto arg0           = pop(stack);
+                auto arg1           = pop(stack);
+                auto arg2           = pop(stack);
+                auto arg3           = pop(stack);
+                auto arg4           = pop(stack);
+                auto arg5           = pop(stack);
+                switch (syscall_number) {
+                    default: {
+                        std::cerr << fmt::format("Unsupported SYSCALL6: {}", syscall_number) << std::endl;
+                        std::exit(1);
+                    }
+                }
                 break;
             }
         }
