@@ -20,3 +20,6 @@ over
 dump
 dump
 dump
+
+// strings
+"Hello, World" 1 1 syscall3

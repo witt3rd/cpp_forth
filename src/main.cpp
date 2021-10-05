@@ -24,7 +24,8 @@ static const auto MEM_CAPACITY = 640 * 1024;
 
 enum class op_t {
     // Stack
-    PUSH,
+    PUSH_INT,
+    PUSH_STR,
     DUP,
     DUP2,
     DROP,
@@ -64,7 +65,8 @@ enum class op_t {
 
 std::map<op_t, std::string> op_words{
         // Stack
-        {op_t::PUSH, "PUSH"},
+        {op_t::PUSH_INT, "PUSH_INT"},
+        {op_t::PUSH_STR, "PUSH_STR"},
         {op_t::DUP, "DUP"},
         {op_t::DUP2, "2DUP"},
         {op_t::DROP, "DROP"},
@@ -112,7 +114,8 @@ struct loc {
 struct op {
     op_t type;
     loc loc;
-    int64_t value{};
+    int64_t int_value{};
+    std::string str_value{};
     uint64_t jmp{};
 };
 
@@ -135,7 +138,7 @@ std::string fmt_loc(const loc& loc) {
 }
 
 std::string fmt_op(const op& o) {
-    return fmt::format("type: {}, loc: {}, value: {}, jmp: {}", op_words[o.type], fmt_loc(o.loc), o.value, o.jmp);
+    return fmt::format("type: {}, loc: {}, int_value: {}, str_value: {}, jmp: {}", op_words[o.type], fmt_loc(o.loc), o.int_value, o.str_value, o.jmp);
 }
 
 
@@ -182,9 +185,14 @@ void simulate(std::vector<op> program) {
         if (is_debug) std::cout << fmt::format("[DBG] IP={:03} OP={}, STACK=", ip, fmt_op(o)) << stack << std::endl;
         ip++;// increment by default; may get overridden
         switch (o.type) {
-            case op_t::PUSH: {// Stack
-                push(stack, o.value);
-                if (is_debug) std::cout << fmt::format("[DBG] PUSH {}", o.value) << std::endl;
+            case op_t::PUSH_INT: {// Stack
+                push(stack, o.int_value);
+                if (is_debug) std::cout << fmt::format("[DBG] PUSH_INT {}", o.int_value) << std::endl;
+                break;
+            }
+            case op_t::PUSH_STR: {// Stack
+                //push(stack, o.str_value);
+                if (is_debug) std::cout << fmt::format("[DBG] PUSH_STR {}", o.str_value) << std::endl;
                 break;
             }
             case op_t::DUP: {
@@ -503,9 +511,14 @@ void compile(std::vector<op> program, std::string& output_path) {
         if (is_debug) std::cout << fmt::format("[DBG] ip={}, op={}", ip, fmt_op(o)) << std::endl;
         output << "addr_" << ip << ":" << std::endl;
         switch (o.type) {
-            case op_t::PUSH: {// Stack
+            case op_t::PUSH_INT: {// Stack
                 output << "    ;; -- push %d --" << std::endl;
-                output << "    push " << o.value << std::endl;
+                output << "    push " << o.int_value << std::endl;
+                break;
+            }
+            case op_t::PUSH_STR: {
+                output << "    ;; -- push %s --" << std::endl;
+                output << "    push " << o.str_value << std::endl;
                 break;
             }
             case op_t::DUP: {
@@ -838,11 +851,10 @@ op parse_token_as_op(const tok& tok) {
             return op{.type = word_ops[tok.text], .loc = tok.loc};
         }
         case tok_t::INT: {
-            return op{.type = op_t::PUSH, .loc = tok.loc, .value = tok.integer};
+            return op{.type = op_t::PUSH_INT, .loc = tok.loc, .int_value = tok.integer};
         }
-        default: {
-            std::cerr << fmt::format("Unknown token type: {} at {}", tok.type, fmt_loc(tok.loc)) << std::endl;
-            std::exit(1);
+        case tok_t::STRING: {
+            return op{.type = op_t::PUSH_STR, .loc = tok.loc, .str_value = tok.text};
         }
     }
 }
@@ -896,7 +908,7 @@ std::vector<tok> lex_line(const std::string& file_path, const uint64_t row, cons
 
     // left over
     if (is_word) {
-        loc loc{file_path, row + 1, cur_word_col};// 1-based row numbering
+        loc loc{file_path, row + 1, cur_word_col};// 1-based row numbering fs
         tokens.push_back(lex_word(loc, cur_word));
     }
     return tokens;
