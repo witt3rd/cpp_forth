@@ -1,3 +1,5 @@
+//-*- mode: Pascal; -*-
+
 // simple IF (true)
 34 35 + 69 = IF 69 DUMP end
 

@@ -1,3 +1,5 @@
+//-*- mode: Pascal; -*-
+
 10
 while dup 0 > do
   dup dump
