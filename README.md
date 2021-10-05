@@ -4,7 +4,7 @@
 [![MIT](http://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
 
 
-Port of [Tsoding's Porth](https://github.com/tsoding/porth) simulator/compiler from Python to CPP.
+Port of [Tsoding's Porth](https://github.com/tsoding/porth) simulator/compiler from Python to C++.
 
 ## Build
 

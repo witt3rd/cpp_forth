@@ -5,3 +5,8 @@ while dup 0 > do
 end
 
 420 dump
+
+30 0 while 2dup > do
+  dup dump
+  1 +
+end
