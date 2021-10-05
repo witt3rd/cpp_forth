@@ -1,3 +1,5 @@
+//-*- mode: Pascal; -*-
+
 mem dup 72  .
 1 + dup 101 .
 1 + dup 108 .
