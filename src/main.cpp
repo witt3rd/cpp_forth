@@ -62,7 +62,7 @@ enum class op_t {
     SYSCALL6
 };
 
-std::map<op_t, std::string> op_t_names{
+std::map<op_t, std::string> op_words{
         // Stack
         {op_t::PUSH, "PUSH"},
         {op_t::DUP, "DUP"},
@@ -72,11 +72,11 @@ std::map<op_t, std::string> op_t_names{
         {op_t::DROP, "OVER"},
         {op_t::DUMP, "DUMP"},
         // Arithmetic
-        {op_t::PLUS, "PLUS"},
-        {op_t::MINUS, "MINUS"},
-        {op_t::EQUAL, "EQUAL"},
-        {op_t::GT, "GT"},
-        {op_t::LT, "LT"},
+        {op_t::PLUS, "+"},
+        {op_t::MINUS, "-"},
+        {op_t::EQUAL, "="},
+        {op_t::GT, ">"},
+        {op_t::LT, "<"},
         // Bitwise
         {op_t::SHR, "SHR"},
         {op_t::SHL, "SHL"},
@@ -91,8 +91,8 @@ std::map<op_t, std::string> op_t_names{
         {op_t::DO, "DO"},
         // Memory
         {op_t::MEM, "MEM"},
-        {op_t::LOAD, "LOAD"},
-        {op_t::STORE, "STORE"},
+        {op_t::LOAD, "."},
+        {op_t::STORE, ","},
         // System
         {op_t::SYSCALL1, "SYSCALL1"},
         {op_t::SYSCALL2, "SYSCALL2"},
@@ -100,6 +100,8 @@ std::map<op_t, std::string> op_t_names{
         {op_t::SYSCALL4, "SYSCALL4"},
         {op_t::SYSCALL5, "SYSCALL5"},
         {op_t::SYSCALL6, "SYSCALL6"}};
+
+std::map<std::string, op_t> word_ops;// generated from op_words
 
 struct loc {
     std::string file_path;
@@ -114,56 +116,28 @@ struct op {
     uint64_t jmp{};
 };
 
-struct token {
-    loc loc;
-    std::string word;
+enum class tok_t {
+    WORD,
+    INT,
+    STRING,
 };
 
-std::string format_loc(const loc& loc) {
+struct tok {
+    tok_t type;
+    loc loc;
+    std::string raw_text;
+    std::int64_t integer;
+    std::string text;
+};
+
+std::string fmt_loc(const loc& loc) {
     return fmt::format("{}({:03}:{:03})", loc.file_path, loc.row, loc.col);
 }
 
-std::string format_op(const op& o) {
-    return fmt::format("type: {}, loc: {}, value: {}, jmp: {}", op_t_names[o.type], format_loc(o.loc), o.value, o.jmp);
+std::string fmt_op(const op& o) {
+    return fmt::format("type: {}, loc: {}, value: {}, jmp: {}", op_words[o.type], fmt_loc(o.loc), o.value, o.jmp);
 }
 
-// Stack
-op op_push(loc loc, int64_t value) { return op{.type = op_t::PUSH, .loc = loc, .value = value}; }
-op op_dup(loc loc) { return op{.type = op_t::DUP, .loc = loc}; }
-op op_dup2(loc loc) { return op{.type = op_t::DUP2, .loc = loc}; }
-op op_drop(loc loc) { return op{.type = op_t::DROP, .loc = loc}; }
-op op_swap(loc loc) { return op{.type = op_t::SWAP, .loc = loc}; }
-op op_over(loc loc) { return op{.type = op_t::OVER, .loc = loc}; }
-op op_dump(loc loc) { return op{.type = op_t::DUMP, .loc = loc}; }
-// Arithmetic
-op op_plus(loc loc) { return op{.type = op_t::PLUS, .loc = loc}; }
-op op_minus(loc loc) { return op{.type = op_t::MINUS, .loc = loc}; }
-op op_equal(loc loc) { return op{.type = op_t::EQUAL, .loc = loc}; }
-op op_gt(loc loc) { return op{.type = op_t::GT, .loc = loc}; }
-op op_lt(loc loc) { return op{.type = op_t::LT, .loc = loc}; }
-// Bitwise
-op op_shr(loc loc) { return op{.type = op_t::SHR, .loc = loc}; }
-op op_shl(loc loc) { return op{.type = op_t::SHL, .loc = loc}; }
-op op_bor(loc loc) { return op{.type = op_t::BOR, .loc = loc}; }
-op op_band(loc loc) { return op{.type = op_t::BAND, .loc = loc}; }
-// Conditional
-op op_if(loc loc) { return op{.type = op_t::IF, .loc = loc}; }
-op op_else(loc loc) { return op{.type = op_t::ELSE, .loc = loc}; }
-op op_end(loc loc) { return op{.type = op_t::END, .loc = loc}; }
-// Loop
-op op_while(loc loc) { return op{.type = op_t::WHILE, .loc = loc}; }
-op op_do(loc loc) { return op{.type = op_t::DO, .loc = loc}; }
-// Memory
-op op_mem(loc loc) { return op{.type = op_t::MEM, .loc = loc}; }
-op op_load(loc loc) { return op{.type = op_t::LOAD, .loc = loc}; }
-op op_store(loc loc) { return op{.type = op_t::STORE, .loc = loc}; }
-// System
-op op_syscall1(loc loc) { return op{.type = op_t::SYSCALL1, .loc = loc}; }
-op op_syscall2(loc loc) { return op{.type = op_t::SYSCALL2, .loc = loc}; }
-op op_syscall3(loc loc) { return op{.type = op_t::SYSCALL3, .loc = loc}; }
-op op_syscall4(loc loc) { return op{.type = op_t::SYSCALL4, .loc = loc}; }
-op op_syscall5(loc loc) { return op{.type = op_t::SYSCALL5, .loc = loc}; }
-op op_syscall6(loc loc) { return op{.type = op_t::SYSCALL6, .loc = loc}; }
 
 template<typename T>
 inline const T pop(std::vector<T>& stack) {
@@ -187,7 +161,7 @@ void simulate(std::vector<op> program) {
     uint64_t ip{0};
     while (ip < program.size()) {
         const op& o{program[ip]};
-        if (is_debug) std::cout << fmt::format("[DBG] {:03}[{:03}]: {}", ip, stack.size(), format_op(o)) << std::endl;
+        if (is_debug) std::cout << fmt::format("[DBG] {:03}[{:03}]: {}", ip, stack.size(), fmt_op(o)) << std::endl;
         ip++;// increment by default; may get overridden
         switch (o.type) {
             case op_t::PUSH: {// Stack
@@ -497,7 +471,7 @@ void compile(std::vector<op> program, std::string& output_path) {
     ADDR_T ip{0};
     while (ip < program.size()) {
         const op& o{program[ip]};
-        if (is_debug) std::cout << fmt::format("[DBG] ip={}, op={}", ip, format_op(o)) << std::endl;
+        if (is_debug) std::cout << fmt::format("[DBG] ip={}, op={}", ip, fmt_op(o)) << std::endl;
         output << "addr_" << ip << ":" << std::endl;
         switch (o.type) {
             case op_t::PUSH: {// Stack
@@ -645,7 +619,7 @@ void compile(std::vector<op> program, std::string& output_path) {
             }
             case op_t::END: {
                 output << "    ;; -- end --" << std::endl;
-                if (is_debug) std::cout << fmt::format("[DBG] %END: ip={}, arg={}", ip, format_op(o)) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] %END: ip={}, arg={}", ip, fmt_op(o)) << std::endl;
                 if (ip + 1 != o.jmp) {
                     output << "    jmp addr_" << o.jmp << std::endl;
                 }
@@ -772,7 +746,7 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
             case op_t::ELSE: {
                 auto iff_ip = pop(ip_stack);
                 op& iff_op  = program[iff_ip];
-                if (is_debug) std::cout << fmt::format("[DBG] ELSE @ {} matched with {} @ {}", ip, op_t_names[iff_op.type], iff_ip) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] ELSE @ {} matched with {} @ {}", ip, op_words[iff_op.type], iff_ip) << std::endl;
                 iff_op.jmp = ip + 1;// IF will jump to instruction _after_ ELSE when fail
                 push(ip_stack, ip); // save the ELSE ip for END
                 break;
@@ -784,7 +758,7 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
                 // - WHILE loop -> jump back to condition
                 auto block_ip = pop(ip_stack);// IF, ELSE, DO, ...
                 op& block_op  = program[block_ip];
-                if (is_debug) std::cout << fmt::format("[DBG] END @ {} matched with {} @ {}", ip, op_t_names[block_op.type], block_ip) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] END @ {} matched with {} @ {}", ip, op_words[block_op.type], block_ip) << std::endl;
                 if (block_op.type == op_t::IF || block_op.type == op_t::ELSE) {
                     o.jmp        = ip + 1;// Update END to jump to next instruction
                     block_op.jmp = ip;    // jump to this instruction (END)
@@ -804,7 +778,7 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
             case op_t::DO: {
                 auto wile_ip = pop(ip_stack);
                 op& wile_op  = program[wile_ip];
-                if (is_debug) std::cout << fmt::format("[DBG] DO @ {} matched with {} @ {}", ip, op_t_names[wile_op.type], wile_ip) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] DO @ {} matched with {} @ {}", ip, op_words[wile_op.type], wile_ip) << std::endl;
                 o.jmp = wile_ip;   // record the WHILE ip
                 push(ip_stack, ip);// save the DO ip for END
                 break;
@@ -823,65 +797,40 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
     return program;
 }
 
-[[noreturn]] void token_error(const token& tok, const std::string& msg) {
-    std::cout << fmt::format("[ERR] {} '{}': {}", format_loc(tok.loc), tok.word, msg) << std::endl;
+[[noreturn]] void token_error(const loc& loc, const std::string& raw_text, const std::string& msg) {
+    std::cout << fmt::format("[ERR] {} '{}': {}", fmt_loc(loc), raw_text, msg) << std::endl;
     std::exit(1);
 }
 
-op parse_token_as_op(const token& tok) {
-    std::string kw = tok.word;
-    std::transform(kw.begin(), kw.end(), kw.begin(), ::toupper);
-
-    // Stack
-    if (kw.compare("DUP") == 0) return op_dup(tok.loc);
-    if (kw.compare("2DUP") == 0) return op_dup2(tok.loc);
-    if (kw.compare("DROP") == 0) return op_drop(tok.loc);
-    if (kw.compare("SWAP") == 0) return op_swap(tok.loc);
-    if (kw.compare("OVER") == 0) return op_over(tok.loc);
-    if (kw.compare("DUMP") == 0) return op_dump(tok.loc);
-    // Arithmetic
-    if (kw.compare("+") == 0) return op_plus(tok.loc);
-    if (kw.compare("-") == 0) return op_minus(tok.loc);
-    if (kw.compare("=") == 0) return op_equal(tok.loc);
-    if (kw.compare(">") == 0) return op_gt(tok.loc);
-    if (kw.compare("<") == 0) return op_lt(tok.loc);
-    // Bitwise
-    if (kw.compare("SHR") == 0) return op_shr(tok.loc);
-    if (kw.compare("SHL") == 0) return op_shl(tok.loc);
-    if (kw.compare("BOR") == 0) return op_bor(tok.loc);
-    if (kw.compare("BAND") == 0) return op_band(tok.loc);
-    // Conditional
-    if (kw.compare("IF") == 0) return op_if(tok.loc);
-    if (kw.compare("ELSE") == 0) return op_else(tok.loc);
-    if (kw.compare("END") == 0) return op_end(tok.loc);
-    // Loop
-    if (kw.compare("WHILE") == 0) return op_while(tok.loc);
-    if (kw.compare("DO") == 0) return op_do(tok.loc);
-    // Memory
-    if (kw.compare("MEM") == 0) return op_mem(tok.loc);
-    if (kw.compare(",") == 0) return op_load(tok.loc);
-    if (kw.compare(".") == 0) return op_store(tok.loc);
-    // System
-    if (kw.compare("SYSCALL1") == 0) return op_syscall1(tok.loc);
-    if (kw.compare("SYSCALL2") == 0) return op_syscall2(tok.loc);
-    if (kw.compare("SYSCALL3") == 0) return op_syscall3(tok.loc);
-    if (kw.compare("SYSCALL4") == 0) return op_syscall4(tok.loc);
-    if (kw.compare("SYSCALL5") == 0) return op_syscall5(tok.loc);
-    if (kw.compare("SYSCALL6") == 0) return op_syscall6(tok.loc);
-
-    // Default stack push
-    try {
-        auto value = std::stoll(tok.word);
-        return op_push(tok.loc, value);
-    } catch (const std::invalid_argument& e) {
-        token_error(tok, "Invalid numeric value");
-    } catch (const std::out_of_range& e) {
-        token_error(tok, "Numeric value out of range");
+op parse_token_as_op(const tok& tok) {
+    switch (tok.type) {
+        case tok_t::WORD: {
+            std::string kw = tok.text;
+            std::transform(kw.begin(), kw.end(), kw.begin(), ::toupper);
+            return op{.type = word_ops[kw], .loc = tok.loc};
+        }
+        case tok_t::INT: {
+            return op{.type = op_t::PUSH, .loc = tok.loc, .value = tok.integer};
+        }
+        default: {
+            std::cerr << fmt::format("Unknown token type: {} at {}", tok.type, fmt_loc(tok.loc)) << std::endl;
+            std::exit(1);
+        }
     }
 }
 
-std::vector<token> lex_line(const std::string& file_path, const std::string& line, const uint64_t row) {
-    std::vector<token> tokens;
+tok lex_word(const loc& loc, const std::string& word) {
+    try {
+        return tok{.type = tok_t::INT, .loc = loc, .raw_text = word, .integer = std::stoll(word)};
+    } catch (const std::out_of_range& e) {
+        token_error(loc, word, "Numeric value out of range");
+    } catch (const std::invalid_argument& e) {
+        return tok{.type = tok_t::WORD, .loc = loc, .raw_text = word, .text = word};
+    }
+}
+
+std::vector<tok> lex_line(const std::string& file_path, const uint64_t row, const std::string& line) {
+    std::vector<tok> tokens;
     uint64_t col{0};
     bool is_word{false};
     std::string cur_word;
@@ -893,8 +842,8 @@ std::vector<token> lex_line(const std::string& file_path, const std::string& lin
     for (auto c : no_comment) {
         if (std::isspace(c)) {
             if (is_word) {
-                token tok{loc{file_path, row, cur_word_col}, cur_word};
-                tokens.push_back(tok);
+                loc loc{file_path, row + 1, cur_word_col};// 1-based row numbering
+                tokens.push_back(lex_word(loc, cur_word));
                 is_word = false;
                 cur_word.clear();
             }
@@ -909,26 +858,28 @@ std::vector<token> lex_line(const std::string& file_path, const std::string& lin
         }
         col++;
     }
+
+    // left over
     if (is_word) {
-        token tok{loc{file_path, row, cur_word_col}, cur_word};
-        tokens.push_back(tok);
+        loc loc{file_path, row + 1, cur_word_col};// 1-based row numbering
+        tokens.push_back(lex_word(loc, cur_word));
     }
     return tokens;
 }
 
-std::vector<token> lex_file(const std::string& file_path) {
+std::vector<tok> lex_file(const std::string& file_path) {
     std::ifstream f(file_path);
     if (!f.is_open()) {
         std::cerr << "[ERR] Unable to open input file" << std::endl;
         std::exit(1);
     }
 
-    std::vector<token> tokens;
+    std::vector<tok> tokens;
     std::string line;
     uint64_t row{0};
 
     while (std::getline(f, line)) {
-        auto line_tokens = lex_line(file_path, line, row);
+        auto line_tokens = lex_line(file_path, row, line);
         tokens.insert(tokens.cend(), line_tokens.cbegin(), line_tokens.cend());
         row++;
     }
@@ -945,7 +896,7 @@ std::vector<op> load_program_from_file(const std::string& file_path) {
     std::vector<op> program;
     program.reserve(tokens.size());
     for (auto& tok : tokens) {
-        if (is_debug) std::cout << fmt::format("[DBG] {}: {}", format_loc(tok.loc), tok.word) << std::endl;
+        if (is_debug) std::cout << fmt::format("[DBG] {}: {}", fmt_loc(tok.loc), tok.type == tok_t::WORD ? tok.text : std::to_string(tok.integer)) << std::endl;
         program.push_back(parse_token_as_op(tok));
     }
 
@@ -993,6 +944,13 @@ int main(int argc, char** argv) {
     if (argc <= cur_arg) {
         std::cerr << "[ERR] Missing subcommand" << std::endl;
         usage(compiler_name);
+    }
+
+    // generate lookup table
+    auto it = op_words.cbegin();
+    while (it != op_words.cend()) {
+        word_ops[it->second] = it->first;
+        it++;
     }
 
     const std::string subcommand{argv[cur_arg++]};
