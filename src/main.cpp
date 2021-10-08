@@ -109,7 +109,11 @@ struct loc {
     std::string file_path;
     uint64_t row;
     uint64_t col;
+    std::string to_string() const {
+        return fmt::format("{}({:03}:{:03})", file_path, row, col);
+    }
 };
+
 
 struct op {
     op_t type;
@@ -117,6 +121,9 @@ struct op {
     int64_t int_value{};
     std::string str_value{};
     uint64_t jmp{};
+    std::string to_string() const {
+        return fmt::format("type: {}, loc: {}, int_value: {}, str_value: {}, jmp: {}", op_words[type], loc.to_string(), int_value, str_value, jmp);
+    }
 };
 
 enum class tok_t {
@@ -132,14 +139,6 @@ struct tok {
     std::int64_t integer;
     std::string text;
 };
-
-std::string fmt_loc(const loc& loc) {
-    return fmt::format("{}({:03}:{:03})", loc.file_path, loc.row, loc.col);
-}
-
-std::string fmt_op(const op& o) {
-    return fmt::format("type: {}, loc: {}, int_value: {}, str_value: {}, jmp: {}", op_words[o.type], fmt_loc(o.loc), o.int_value, o.str_value, o.jmp);
-}
 
 
 template<typename T>
@@ -182,7 +181,7 @@ void simulate(std::vector<op> program) {
     uint64_t ip{0};
     while (ip < program.size()) {
         const op& o{program[ip]};
-        if (is_debug) std::cout << fmt::format("[DBG] IP={:03} OP={}, STACK=", ip, fmt_op(o)) << stack << std::endl;
+        if (is_debug) std::cout << fmt::format("[DBG] IP={:03} OP={}, STACK=", ip, o.to_string()) << stack << std::endl;
         ip++;// increment by default; may get overridden
         switch (o.type) {
             case op_t::PUSH_INT: {// Stack
@@ -508,7 +507,7 @@ void compile(std::vector<op> program, std::string& output_path) {
     ADDR_T ip{0};
     while (ip < program.size()) {
         const op& o{program[ip]};
-        if (is_debug) std::cout << fmt::format("[DBG] ip={}, op={}", ip, fmt_op(o)) << std::endl;
+        if (is_debug) std::cout << fmt::format("[DBG] ip={}, op={}", ip, o.to_string()) << std::endl;
         output << "addr_" << ip << ":" << std::endl;
         switch (o.type) {
             case op_t::PUSH_INT: {// Stack
@@ -661,7 +660,7 @@ void compile(std::vector<op> program, std::string& output_path) {
             }
             case op_t::END: {
                 output << "    ;; -- end --" << std::endl;
-                if (is_debug) std::cout << fmt::format("[DBG] %END: ip={}, arg={}", ip, fmt_op(o)) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] %END: ip={}, arg={}", ip, o.to_string()) << std::endl;
                 if (ip + 1 != o.jmp) {
                     output << "    jmp addr_" << o.jmp << std::endl;
                 }
@@ -841,7 +840,7 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
 }
 
 [[noreturn]] void token_error(const loc& loc, const std::string& raw_text, const std::string& msg) {
-    std::cout << fmt::format("[ERR] {} '{}': {}", fmt_loc(loc), raw_text, msg) << std::endl;
+    std::cout << fmt::format("[ERR] {} '{}': {}", loc.to_string(), raw_text, msg) << std::endl;
     std::exit(1);
 }
 
@@ -944,7 +943,7 @@ std::vector<op> load_program_from_file(const std::string& file_path) {
     std::vector<op> program;
     program.reserve(tokens.size());
     for (auto& tok : tokens) {
-        if (is_debug) std::cout << fmt::format("[DBG] {}: {}", fmt_loc(tok.loc), tok.type == tok_t::WORD ? tok.text : std::to_string(tok.integer)) << std::endl;
+        if (is_debug) std::cout << fmt::format("[DBG] {}: {}", tok.loc.to_string(), tok.type == tok_t::WORD ? tok.text : std::to_string(tok.integer)) << std::endl;
         program.push_back(parse_token_as_op(tok));
     }
 
