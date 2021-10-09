@@ -1,4 +1,6 @@
 #include "command.hpp"
+#include "lexer.hpp"
+#include "op.hpp"
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
@@ -20,125 +22,7 @@ static const auto MEM_CAPACITY = 640 * 1024;
 
 #define STACK_T int64_t// simulated stack
 #define MEM_T char     // simulated memory
-#define ADDR_T int64_t // virtual addresses (cross-refs)
-
-enum class op_t {
-    // Stack
-    PUSH_INT,
-    PUSH_STR,
-    DUP,
-    DUP2,
-    DROP,
-    SWAP,
-    OVER,
-    DUMP,
-    // Arithmetic
-    PLUS,
-    MINUS,
-    EQUAL,
-    GT,
-    LT,
-    // Bitwise
-    SHR,
-    SHL,
-    BOR,
-    BAND,
-    // Conditional
-    IF,
-    ELSE,
-    END,
-    // Loop
-    WHILE,
-    DO,
-    // Memory
-    MEM,
-    LOAD,
-    STORE,
-    // System
-    SYSCALL1,
-    SYSCALL2,
-    SYSCALL3,
-    SYSCALL4,
-    SYSCALL5,
-    SYSCALL6
-};
-
-std::map<op_t, std::string> op_words{
-        // Stack
-        {op_t::PUSH_INT, "PUSH_INT"},
-        {op_t::PUSH_STR, "PUSH_STR"},
-        {op_t::DUP, "DUP"},
-        {op_t::DUP2, "2DUP"},
-        {op_t::DROP, "DROP"},
-        {op_t::SWAP, "SWAP"},
-        {op_t::OVER, "OVER"},
-        {op_t::DUMP, "DUMP"},
-        // Arithmetic
-        {op_t::PLUS, "+"},
-        {op_t::MINUS, "-"},
-        {op_t::EQUAL, "="},
-        {op_t::GT, ">"},
-        {op_t::LT, "<"},
-        // Bitwise
-        {op_t::SHR, "SHR"},
-        {op_t::SHL, "SHL"},
-        {op_t::BOR, "BOR"},
-        {op_t::BAND, "BAND"},
-        // Conditional
-        {op_t::IF, "IF"},
-        {op_t::ELSE, "ELSE"},
-        {op_t::END, "END"},
-        // Loop
-        {op_t::WHILE, "WHILE"},
-        {op_t::DO, "DO"},
-        // Memory
-        {op_t::MEM, "MEM"},
-        {op_t::LOAD, ","},
-        {op_t::STORE, "."},
-        // System
-        {op_t::SYSCALL1, "SYSCALL1"},
-        {op_t::SYSCALL2, "SYSCALL2"},
-        {op_t::SYSCALL3, "SYSCALL3"},
-        {op_t::SYSCALL4, "SYSCALL4"},
-        {op_t::SYSCALL5, "SYSCALL5"},
-        {op_t::SYSCALL6, "SYSCALL6"}};
-
-std::map<std::string, op_t> word_ops;// generated from op_words
-
-struct loc {
-    std::string file_path;
-    uint64_t row;
-    uint64_t col;
-    std::string to_string() const {
-        return fmt::format("{}({:03}:{:03})", file_path, row, col);
-    }
-};
-
-
-struct op {
-    op_t type;
-    loc loc;
-    int64_t int_value{};
-    std::string str_value{};
-    uint64_t jmp{};
-    std::string to_string() const {
-        return fmt::format("type: {}, loc: {}, int_value: {}, str_value: {}, jmp: {}", op_words[type], loc.to_string(), int_value, str_value, jmp);
-    }
-};
-
-enum class tok_t {
-    WORD,
-    INT,
-    STRING,
-};
-
-struct tok {
-    tok_t type;
-    loc loc;
-    std::string raw_text;
-    std::int64_t integer;
-    std::string text;
-};
+#define ADDR_T uint64_t// virtual addresses (cross-refs)
 
 
 template<typename T>
@@ -181,7 +65,7 @@ void simulate(std::vector<op> program) {
     uint64_t ip{0};
     while (ip < program.size()) {
         const op& o{program[ip]};
-        if (is_debug) std::cout << fmt::format("[DBG] IP={:03} OP={}, STACK=", ip, o.to_string()) << stack << std::endl;
+        if (is_debug) std::cout << fmt::format("[DBG] IP={:03} OP={}, STACK=", ip, to_string(o)) << stack << std::endl;
         ip++;// increment by default; may get overridden
         switch (o.type) {
             case op_t::PUSH_INT: {// Stack
@@ -362,7 +246,7 @@ void simulate(std::vector<op> program) {
                         std::exit(error_code);
                     }
                     default: {
-                        std::cerr << fmt::format("[ERR] Unsupported SYSCALL1: {}", syscall_number) << std::endl;
+                        std::cerr << fmt::format("[ERR] Unsupported SYSCALL1: {}({})", syscall_number, arg0) << std::endl;
                         std::exit(1);
                     }
                 }
@@ -374,7 +258,7 @@ void simulate(std::vector<op> program) {
                 auto arg1           = pop(stack);
                 switch (syscall_number) {
                     default: {
-                        std::cerr << fmt::format("[ERR] Unsupported SYSCALL2: {}", syscall_number) << std::endl;
+                        std::cerr << fmt::format("[ERR] Unsupported SYSCALL2: {}({},{})", syscall_number, arg0, arg1) << std::endl;
                         std::exit(1);
                     }
                 }
@@ -410,7 +294,7 @@ void simulate(std::vector<op> program) {
                         break;
                     }
                     default: {
-                        std::cerr << fmt::format("[ERR] Unsupported SYSCALL3: {}: {} {} {}", syscall_number, arg0, arg2, arg1) << std::endl;
+                        std::cerr << fmt::format("[ERR] Unsupported SYSCALL3: {}({}, {}, {})", syscall_number, arg0, arg1, arg2) << std::endl;
                         std::exit(1);
                     }
                 }
@@ -424,7 +308,7 @@ void simulate(std::vector<op> program) {
                 auto arg3           = pop(stack);
                 switch (syscall_number) {
                     default: {
-                        std::cerr << fmt::format("[ERR] Unsupported SYSCALL4: {}", syscall_number) << std::endl;
+                        std::cerr << fmt::format("[ERR] Unsupported SYSCALL4: {}({}, {}, {}, {})", syscall_number, arg0, arg1, arg2, arg3) << std::endl;
                         std::exit(1);
                     }
                 }
@@ -439,7 +323,7 @@ void simulate(std::vector<op> program) {
                 auto arg4           = pop(stack);
                 switch (syscall_number) {
                     default: {
-                        std::cerr << fmt::format("[ERR] Unsupported SYSCALL5: {}", syscall_number) << std::endl;
+                        std::cerr << fmt::format("[ERR] Unsupported SYSCALL5: {}({},{},{},{},{})", syscall_number, arg0, arg1, arg2, arg3, arg4) << std::endl;
                         std::exit(1);
                     }
                 }
@@ -455,7 +339,7 @@ void simulate(std::vector<op> program) {
                 auto arg5           = pop(stack);
                 switch (syscall_number) {
                     default: {
-                        std::cerr << fmt::format("[ERR] Unsupported SYSCALL6: {}", syscall_number) << std::endl;
+                        std::cerr << fmt::format("[ERR] Unsupported SYSCALL6: {}({},{},{},{},{},{})", syscall_number, arg0, arg1, arg2, arg3, arg4, arg5) << std::endl;
                         std::exit(1);
                     }
                 }
@@ -507,7 +391,7 @@ void compile(std::vector<op> program, std::string& output_path) {
     ADDR_T ip{0};
     while (ip < program.size()) {
         const op& o{program[ip]};
-        if (is_debug) std::cout << fmt::format("[DBG] ip={}, op={}", ip, o.to_string()) << std::endl;
+        if (is_debug) std::cout << fmt::format("[DBG] ip={}, op={}", ip, to_string(o)) << std::endl;
         output << "addr_" << ip << ":" << std::endl;
         switch (o.type) {
             case op_t::PUSH_INT: {// Stack
@@ -660,7 +544,7 @@ void compile(std::vector<op> program, std::string& output_path) {
             }
             case op_t::END: {
                 output << "    ;; -- end --" << std::endl;
-                if (is_debug) std::cout << fmt::format("[DBG] %END: ip={}, arg={}", ip, o.to_string()) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] %END: ip={}, arg={}", ip, to_string(o)) << std::endl;
                 if (ip + 1 != o.jmp) {
                     output << "    jmp addr_" << o.jmp << std::endl;
                 }
@@ -788,7 +672,7 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
             case op_t::ELSE: {
                 auto iff_ip = pop(ip_stack);
                 op& iff_op  = program[iff_ip];
-                if (is_debug) std::cout << fmt::format("[DBG] ELSE @ {} matched with {} @ {}", ip, op_words[iff_op.type], iff_ip) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] ELSE @ {} matched with {} @ {}", ip, to_string(iff_op.type), iff_ip) << std::endl;
                 iff_op.jmp = ip + 1;// IF will jump to instruction _after_ ELSE when fail
                 push(ip_stack, ip); // save the ELSE ip for END
                 break;
@@ -800,7 +684,7 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
                 // - WHILE loop -> jump back to condition
                 auto block_ip = pop(ip_stack);// IF, ELSE, DO, ...
                 op& block_op  = program[block_ip];
-                if (is_debug) std::cout << fmt::format("[DBG] END @ {} matched with {} @ {}", ip, op_words[block_op.type], block_ip) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] END @ {} matched with {} @ {}", ip, to_string(block_op.type), block_ip) << std::endl;
                 if (block_op.type == op_t::IF || block_op.type == op_t::ELSE) {
                     o.jmp        = ip + 1;// Update END to jump to next instruction
                     block_op.jmp = ip;    // jump to this instruction (END)
@@ -820,7 +704,7 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
             case op_t::DO: {
                 auto wile_ip = pop(ip_stack);
                 op& wile_op  = program[wile_ip];
-                if (is_debug) std::cout << fmt::format("[DBG] DO @ {} matched with {} @ {}", ip, op_words[wile_op.type], wile_ip) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] DO @ {} matched with {} @ {}", ip, to_string(wile_op.type), wile_ip) << std::endl;
                 o.jmp = wile_ip;   // record the WHILE ip
                 push(ip_stack, ip);// save the DO ip for END
                 break;
@@ -839,15 +723,10 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
     return program;
 }
 
-[[noreturn]] void token_error(const loc& loc, const std::string& raw_text, const std::string& msg) {
-    std::cout << fmt::format("[ERR] {} '{}': {}", loc.to_string(), raw_text, msg) << std::endl;
-    std::exit(1);
-}
-
 op parse_token_as_op(const tok& tok) {
     switch (tok.type) {
         case tok_t::WORD: {
-            return op{.type = word_ops[tok.text], .loc = tok.loc};
+            return op{.type = to_op_t(tok.text), .loc = tok.loc};
         }
         case tok_t::INT: {
             return op{.type = op_t::PUSH_INT, .loc = tok.loc, .int_value = tok.integer};
@@ -858,87 +737,10 @@ op parse_token_as_op(const tok& tok) {
     }
 }
 
-tok lex_word(const loc& loc, const std::string& word) {
-    std::string kw = word;
-    std::transform(kw.begin(), kw.end(), kw.begin(), ::toupper);
-    if (word_ops.contains(kw)) {
-        return tok{.type = tok_t::WORD, .loc = loc, .raw_text = word, .text = kw};
-    }
-
-    try {
-        return tok{.type = tok_t::INT, .loc = loc, .raw_text = word, .integer = std::stoll(word)};
-    } catch (const std::out_of_range& e) {
-        token_error(loc, word, "Numeric value out of range");
-    } catch (const std::invalid_argument& e) {
-        std::cerr << "[ERR] Unsupported word: " << word << std::endl;
-        std::exit(1);
-    }
-}
-
-std::vector<tok> lex_line(const std::string& file_path, const uint64_t row, const std::string& line) {
-    std::vector<tok> tokens;
-    uint64_t col{0};
-    bool is_word{false};
-    std::string cur_word;
-    uint64_t cur_word_col{};
-
-    // remove comment (if any)
-    auto no_comment = line.substr(0, line.find("//"));
-
-    for (auto c : no_comment) {
-        if (std::isspace(c)) {
-            if (is_word) {
-                loc loc{file_path, row + 1, cur_word_col};// 1-based row numbering
-                tokens.push_back(lex_word(loc, cur_word));
-                is_word = false;
-                cur_word.clear();
-            }
-        } else {
-            if (is_word) {
-                cur_word += c;
-            } else {
-                cur_word     = c;
-                cur_word_col = col;
-                is_word      = true;
-            }
-        }
-        col++;
-    }
-
-    // left over
-    if (is_word) {
-        loc loc{file_path, row + 1, cur_word_col};// 1-based row numbering fs
-        tokens.push_back(lex_word(loc, cur_word));
-    }
-    return tokens;
-}
-
-std::vector<tok> lex_file(const std::string& file_path) {
-    if (is_debug) std::cout << "***** lexing file *****" << std::endl;
-    std::ifstream f(file_path);
-    if (!f.is_open()) {
-        std::cerr << "[ERR] Unable to open input file" << std::endl;
-        std::exit(1);
-    }
-
-    std::vector<tok> tokens;
-    std::string line;
-    uint64_t row{0};
-
-    while (std::getline(f, line)) {
-        auto line_tokens = lex_line(file_path, row, line);
-        tokens.insert(tokens.cend(), line_tokens.cbegin(), line_tokens.cend());
-        row++;
-    }
-
-    f.close();
-
-    return tokens;
-}
-
 std::vector<op> load_program_from_file(const std::string& file_path) {
 
-    auto tokens{lex_file(file_path)};
+    lexer lexer;
+    auto tokens{lexer.lex_file(file_path)};
 
     std::vector<op> program;
     program.reserve(tokens.size());
@@ -991,13 +793,6 @@ int main(int argc, char** argv) {
     if (argc <= cur_arg) {
         std::cerr << "[ERR] Missing subcommand" << std::endl;
         usage(compiler_name);
-    }
-
-    // generate lookup table
-    auto it = op_words.cbegin();
-    while (it != op_words.cend()) {
-        word_ops[it->second] = it->first;
-        it++;
     }
 
     const std::string subcommand{argv[cur_arg++]};
