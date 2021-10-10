@@ -1,34 +1,30 @@
 #pragma once
 
+#include "bimap.hpp"
 #include <fmt/format.h>
 #include <string>
 #include <vector>
 
-struct loc {
-    std::string file_path;
-    uint64_t row;
-    uint64_t col;
-    std::string to_string() const {
-        return fmt::format("{}({:03}:{:03})", file_path, row, col);
-    }
+enum class token_type {
+    WHITESPACE,
+    IDENTIFIER,
+    STRING_LITERAL,
+    INTEGER_LITERAL,
+    FLOAT_LITERAL,
+    OPERATOR,
 };
 
-enum class tok_t {
-    WORD,
-    INT,
-    STRING,
+struct token {
+    token_type type{token_type::WHITESPACE};
+    std::string file_path{};
+    std::string text{};
+    std::size_t row{0};
+    std::size_t column{0};
 };
 
-struct tok {
-    tok_t type;
-    loc loc;
-    std::string raw_text;
-    std::int64_t integer;
-    std::string text;
-};
+std::vector<token> lex_file(std::string const &file_path);
+std::vector<token> lex_stream(std::istream &in_stream);
 
-struct lexer {
-    tok lex_word(loc const& loc, std::string const& word);
-    std::vector<tok> lex_line(std::string const& file_path, uint64_t const row, std::string const& line);
-    std::vector<tok> lex_file(std::string const& file_path);
-};
+std::string to_string(token_type t);
+token_type to_token_type(std::string const &s);
+std::string to_string(token const &t);

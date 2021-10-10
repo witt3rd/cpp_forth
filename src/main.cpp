@@ -1,17 +1,14 @@
 #include "command.hpp"
 #include "lexer.hpp"
-#include "op.hpp"
+#include "parser.hpp"
 #include <algorithm>
-#include <cctype>
 #include <cstdint>
 #include <filesystem>
 #include <fmt/core.h>
 #include <fmt/format.h>
 #include <fstream>
-#include <ios>
 #include <iostream>
 #include <iterator>
-#include <map>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -26,8 +23,8 @@ static const auto MEM_CAPACITY = 640 * 1024;
 
 
 template<typename T>
-inline const T pop(std::vector<T>& stack) {
-    if (stack.size() == 0) {
+inline T pop(std::vector<T> &stack) {
+    if (stack.empty()) {
         std::cerr << "[ERR] Stack underflow" << std::endl;
         std::exit(1);
     }
@@ -37,10 +34,10 @@ inline const T pop(std::vector<T>& stack) {
 }
 
 template<typename T>
-inline void push(std::vector<T>& stack, const T x) { stack.push_back(x); }
+inline void push(std::vector<T> &stack, const T x) { stack.push_back(x); }
 
 template<typename T>
-std::ostream& operator<<(std::ostream& out, const std::vector<T>& stack) {
+std::ostream &operator<<(std::ostream &out, const std::vector<T> &stack) {
     if (!stack.empty()) {
         out << "[";
         std::ranges::copy(stack, std::ostream_iterator<T>(out, ", "));
@@ -64,28 +61,28 @@ void simulate(std::vector<op> program) {
 
     uint64_t ip{0};
     while (ip < program.size()) {
-        const op& o{program[ip]};
+        op const &o{program[ip]};
         if (is_debug) std::cout << fmt::format("[DBG] IP={:03} OP={}, STACK=", ip, to_string(o)) << stack << std::endl;
         ip++;// increment by default; may get overridden
         switch (o.type) {
-            case op_t::PUSH_INT: {// Stack
+            case op_type::PUSH_INT: {// Stack
                 push(stack, o.int_value);
                 if (is_debug) std::cout << fmt::format("[DBG] PUSH_INT {}", o.int_value) << std::endl;
                 break;
             }
-            case op_t::PUSH_STR: {// Stack
+            case op_type::PUSH_STR: {// Stack
                 //push(stack, o.str_value);
                 if (is_debug) std::cout << fmt::format("[DBG] PUSH_STR {}", o.str_value) << std::endl;
                 break;
             }
-            case op_t::DUP: {
+            case op_type::DUP: {
                 auto a = pop(stack);
                 push(stack, a);
                 push(stack, a);
                 if (is_debug) std::cout << fmt::format("[DBG] DUP {}", a) << std::endl;
                 break;
             }
-            case op_t::DUP2: {
+            case op_type::DUP2: {
                 auto a = pop(stack);
                 auto b = pop(stack);
                 push(stack, b);
@@ -95,12 +92,12 @@ void simulate(std::vector<op> program) {
                 if (is_debug) std::cout << fmt::format("[DBG] 2DUP {} {}", a, b) << std::endl;
                 break;
             }
-            case op_t::DROP: {
+            case op_type::DROP: {
                 auto a = pop(stack);
                 if (is_debug) std::cout << fmt::format("[DBG] DROP {} ", a) << std::endl;
                 break;
             }
-            case op_t::SWAP: {
+            case op_type::SWAP: {
                 auto a = pop(stack);
                 auto b = pop(stack);
                 push(stack, a);
@@ -108,7 +105,7 @@ void simulate(std::vector<op> program) {
                 if (is_debug) std::cout << fmt::format("[DBG] SWAP {} {}", a, b) << std::endl;
                 break;
             }
-            case op_t::OVER: {
+            case op_type::OVER: {
                 auto a = pop(stack);
                 auto b = pop(stack);
                 push(stack, b);
@@ -117,99 +114,99 @@ void simulate(std::vector<op> program) {
                 if (is_debug) std::cout << fmt::format("[DBG] OVER {} {}", a, b) << std::endl;
                 break;
             }
-            case op_t::DUMP: {
+            case op_type::DUMP: {
                 auto a = pop(stack);
                 std::cout << a << std::endl;
                 if (is_debug) std::cout << fmt::format("[DBG] DUMP {}", a) << std::endl;
                 break;
             }
-            case op_t::PLUS: {// Arithmetic
+            case op_type::PLUS: {// Arithmetic
                 auto b = pop(stack);
                 auto a = pop(stack);
                 push(stack, a + b);
                 if (is_debug) std::cout << fmt::format("[DBG] {} + {} = {}", a, b, a + b) << std::endl;
                 break;
             }
-            case op_t::MINUS: {
+            case op_type::MINUS: {
                 auto b = pop(stack);
                 auto a = pop(stack);
                 push(stack, a - b);
                 if (is_debug) std::cout << fmt::format("[DBG] {} - {} = {}", a, b, a - b) << std::endl;
                 break;
             }
-            case op_t::EQUAL: {
+            case op_type::EQUAL: {
                 auto b = pop(stack);
                 auto a = pop(stack);
                 push(stack, static_cast<STACK_T>(a == b));
                 if (is_debug) std::cout << fmt::format("[DBG] {} == {} = {}", a, b, a == b) << std::endl;
                 break;
             }
-            case op_t::GT: {
+            case op_type::GT: {
                 auto b = pop(stack);
                 auto a = pop(stack);
                 push(stack, static_cast<STACK_T>(a > b));
                 if (is_debug) std::cout << fmt::format("[DBG] {} > {} = {}", a, b, a > b) << std::endl;
                 break;
             }
-            case op_t::LT: {
+            case op_type::LT: {
                 auto b = pop(stack);
                 auto a = pop(stack);
                 push(stack, static_cast<STACK_T>(a < b));
                 if (is_debug) std::cout << fmt::format("[DBG] {} < {} = {}", a, b, a < b) << std::endl;
                 break;
             }
-            case op_t::SHR: {// Bitwise
+            case op_type::SHR: {// Bitwise
                 auto b = pop(stack);
                 auto a = pop(stack);
                 push(stack, a >> b);
                 if (is_debug) std::cout << fmt::format("[DBG] {} >> {} = {}", a, b, a >> b) << std::endl;
                 break;
             }
-            case op_t::SHL: {
+            case op_type::SHL: {
                 auto b = pop(stack);
                 auto a = pop(stack);
                 push(stack, a << b);
                 if (is_debug) std::cout << fmt::format("[DBG] {} << {} = {}", a, b, a << b) << std::endl;
                 break;
             }
-            case op_t::BOR: {
+            case op_type::BOR: {
                 auto b = pop(stack);
                 auto a = pop(stack);
                 push(stack, a | b);
                 if (is_debug) std::cout << fmt::format("[DBG] {} | {} = {}", a, b, a | b) << std::endl;
                 break;
             }
-            case op_t::BAND: {
+            case op_type::BAND: {
                 auto b = pop(stack);
                 auto a = pop(stack);
                 push(stack, a & b);
                 if (is_debug) std::cout << fmt::format("[DBG] {} & {} = {}", a, b, a & b) << std::endl;
                 break;
             }
-            case op_t::IF: {// Conditional
+            case op_type::IF: {// Conditional
                 auto a = pop(stack);
                 if (a == 0) ip = o.jmp;
                 if (is_debug) std::cout << fmt::format("[DBG] IF {} = {} -> {}", a, a != 0, o.jmp) << std::endl;
                 break;
             }
-            case op_t::ELSE: {
+            case op_type::ELSE: {
                 // when we hit an ELSE (from executing the success branch of an IF), jump to the END
                 ip = o.jmp;
                 if (is_debug) std::cout << fmt::format("[DBG] ELSE -> {}", o.jmp) << std::endl;
                 break;
             }
-            case op_t::END: {
+            case op_type::END: {
                 // when we hit an END, jump to its saved ip
                 ip = o.jmp;
                 if (is_debug) std::cout << fmt::format("[DBG] END -> {}", o.jmp) << std::endl;
                 break;
             }
-            case op_t::WHILE: {// Loop
+            case op_type::WHILE: {// Loop
                 // do nothing
                 if (is_debug) std::cout << fmt::format("[DBG] WHILE") << std::endl;
                 break;
             }
-            case op_t::DO: {
+            case op_type::DO: {
                 auto a = pop(stack);
                 if (a == 0) {
                     // failed the WHILE condition, jump _past_ the END
@@ -218,31 +215,31 @@ void simulate(std::vector<op> program) {
                 if (is_debug) std::cout << fmt::format("[DBG] DO {} = {} -> {}", a, a != 0, o.jmp) << std::endl;
                 break;
             }
-            case op_t::MEM: {// Memory
+            case op_type::MEM: {// Memory
                 push(stack, static_cast<STACK_T>(0));
                 if (is_debug) std::cout << fmt::format("[DBG] MEM") << std::endl;
                 break;
             }
-            case op_t::LOAD: {
+            case op_type::LOAD: {
                 auto addr = pop(stack);
                 auto byte = mem[addr] & 0xff;
                 push(stack, static_cast<STACK_T>(byte));
                 if (is_debug) std::cout << fmt::format("[DBG] LOAD MEM[{}] -> {}", addr, byte) << std::endl;
                 break;
             }
-            case op_t::STORE: {
+            case op_type::STORE: {
                 auto byte = pop(stack);
                 auto addr = pop(stack);
                 mem[addr] = byte & 0xff;
                 if (is_debug) std::cout << fmt::format("[DBG] STORE MEM[{}] <- {}", addr, byte & 0xff) << std::endl;
                 break;
             }
-            case op_t::SYSCALL1: {// System
+            case op_type::SYSCALL1: {// System
                 auto syscall_number = pop(stack);
                 auto arg0           = pop(stack);
                 switch (syscall_number) {
                     case 60: {// exit
-                        auto error_code = arg0;
+                        int error_code = (int)arg0;
                         std::exit(error_code);
                     }
                     default: {
@@ -252,7 +249,7 @@ void simulate(std::vector<op> program) {
                 }
                 break;
             }
-            case op_t::SYSCALL2: {
+            case op_type::SYSCALL2: {
                 auto syscall_number = pop(stack);
                 auto arg0           = pop(stack);
                 auto arg1           = pop(stack);
@@ -264,7 +261,7 @@ void simulate(std::vector<op> program) {
                 }
                 break;
             }
-            case op_t::SYSCALL3: {
+            case op_type::SYSCALL3: {
                 auto syscall_number = pop(stack);
                 auto arg0           = pop(stack);
                 auto arg1           = pop(stack);
@@ -300,7 +297,7 @@ void simulate(std::vector<op> program) {
                 }
                 break;
             }
-            case op_t::SYSCALL4: {
+            case op_type::SYSCALL4: {
                 auto syscall_number = pop(stack);
                 auto arg0           = pop(stack);
                 auto arg1           = pop(stack);
@@ -314,7 +311,7 @@ void simulate(std::vector<op> program) {
                 }
                 break;
             }
-            case op_t::SYSCALL5: {
+            case op_type::SYSCALL5: {
                 auto syscall_number = pop(stack);
                 auto arg0           = pop(stack);
                 auto arg1           = pop(stack);
@@ -329,7 +326,7 @@ void simulate(std::vector<op> program) {
                 }
                 break;
             }
-            case op_t::SYSCALL6: {
+            case op_type::SYSCALL6: {
                 auto syscall_number = pop(stack);
                 auto arg0           = pop(stack);
                 auto arg1           = pop(stack);
@@ -348,12 +345,12 @@ void simulate(std::vector<op> program) {
         }
     }
 
-    if (stack.size() != 0) {
+    if (!stack.empty()) {
         std::cerr << "[WRN] Program terminated with non-empty stack: " << stack << std::endl;
     }
 }
 
-void compile(std::vector<op> program, std::string& output_path) {
+void compile(std::vector<op> program, std::string &output_path) {
     std::ofstream output(output_path);
     output << "segment .text" << std::endl;
 
@@ -390,28 +387,28 @@ void compile(std::vector<op> program, std::string& output_path) {
 
     ADDR_T ip{0};
     while (ip < program.size()) {
-        const op& o{program[ip]};
+        const op &o{program[ip]};
         if (is_debug) std::cout << fmt::format("[DBG] ip={}, op={}", ip, to_string(o)) << std::endl;
         output << "addr_" << ip << ":" << std::endl;
         switch (o.type) {
-            case op_t::PUSH_INT: {// Stack
+            case op_type::PUSH_INT: {// Stack
                 output << "    ;; -- push %d --" << std::endl;
                 output << "    push " << o.int_value << std::endl;
                 break;
             }
-            case op_t::PUSH_STR: {
+            case op_type::PUSH_STR: {
                 output << "    ;; -- push %s --" << std::endl;
                 output << "    push " << o.str_value << std::endl;
                 break;
             }
-            case op_t::DUP: {
+            case op_type::DUP: {
                 output << "    ;; -- dup --" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    push rax" << std::endl;
                 output << "    push rax" << std::endl;
                 break;
             }
-            case op_t::DUP2: {
+            case op_type::DUP2: {
                 output << "    ;; -- dup2 --" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    pop rbx" << std::endl;
@@ -421,12 +418,12 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    push rax" << std::endl;
                 break;
             }
-            case op_t::DROP: {
+            case op_type::DROP: {
                 output << "    ;; -- drop --" << std::endl;
                 output << "    pop rax" << std::endl;
                 break;
             }
-            case op_t::SWAP: {
+            case op_type::SWAP: {
                 output << "    ;; -- swap --" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    pop rbx" << std::endl;
@@ -434,7 +431,7 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    push rbx" << std::endl;
                 break;
             }
-            case op_t::OVER: {
+            case op_type::OVER: {
                 output << "    ;; -- over --" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    pop rbx" << std::endl;
@@ -443,13 +440,13 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    push rbx" << std::endl;
                 break;
             }
-            case op_t::DUMP: {
+            case op_type::DUMP: {
                 output << "    ;; -- dump --" << std::endl;
                 output << "    pop rdi" << std::endl;
                 output << "    call dump" << std::endl;
                 break;
             }
-            case op_t::PLUS: {// Arithmetic
+            case op_type::PLUS: {// Arithmetic
                 output << "    ;; -- plus --" << std::endl;
                 output << "    pop rbx" << std::endl;
                 output << "    pop rax" << std::endl;
@@ -457,7 +454,7 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    push rax" << std::endl;
                 break;
             }
-            case op_t::MINUS: {
+            case op_type::MINUS: {
                 output << "    ;; -- minus --" << std::endl;
                 output << "    pop rbx" << std::endl;
                 output << "    pop rax" << std::endl;
@@ -465,7 +462,7 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    push rax" << std::endl;
                 break;
             }
-            case op_t::EQUAL: {
+            case op_type::EQUAL: {
                 output << "    ;; -- equal --" << std::endl;
                 output << "    mov rcx, 0" << std::endl;
                 output << "    mov rdx, 1" << std::endl;
@@ -476,7 +473,7 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    push rcx" << std::endl;
                 break;
             }
-            case op_t::GT: {
+            case op_type::GT: {
                 output << "    ;; -- gt --" << std::endl;
                 output << "    mov rcx, 0" << std::endl;
                 output << "    mov rdx, 1" << std::endl;
@@ -487,7 +484,7 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    push rcx" << std::endl;
                 break;
             }
-            case op_t::LT: {
+            case op_type::LT: {
                 output << "    ;; -- lt --" << std::endl;
                 output << "    mov rcx, 0" << std::endl;
                 output << "    mov rdx, 1" << std::endl;
@@ -498,7 +495,7 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    push rcx" << std::endl;
                 break;
             }
-            case op_t::SHR: {// Bitwise
+            case op_type::SHR: {// Bitwise
                 output << "    ;; -- shr --" << std::endl;
                 output << "    pop rcx" << std::endl;
                 output << "    pop rax" << std::endl;
@@ -506,7 +503,7 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    push rax" << std::endl;
                 break;
             }
-            case op_t::SHL: {
+            case op_type::SHL: {
                 output << "    ;; -- shl --" << std::endl;
                 output << "    pop rcx" << std::endl;
                 output << "    pop rax" << std::endl;
@@ -514,7 +511,7 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    push rax" << std::endl;
                 break;
             }
-            case op_t::BOR: {
+            case op_type::BOR: {
                 output << "    ;; -- bor --" << std::endl;
                 output << "    pop rbx" << std::endl;
                 output << "    pop rax" << std::endl;
@@ -522,7 +519,7 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    push rax" << std::endl;
                 break;
             }
-            case op_t::BAND: {
+            case op_type::BAND: {
                 output << "    ;; -- band --" << std::endl;
                 output << "    pop rbx" << std::endl;
                 output << "    pop rax" << std::endl;
@@ -530,19 +527,19 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    push rax" << std::endl;
                 break;
             }
-            case op_t::IF: {// Conditional
+            case op_type::IF: {// Conditional
                 output << "    ;; -- if --" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    test rax, rax" << std::endl;
                 output << "    jz addr_" << o.jmp << std::endl;
                 break;
             }
-            case op_t::ELSE: {
+            case op_type::ELSE: {
                 output << "    ;; -- else --" << std::endl;
                 output << "    jmp addr_" << o.jmp << std::endl;
                 break;
             }
-            case op_t::END: {
+            case op_type::END: {
                 output << "    ;; -- end --" << std::endl;
                 if (is_debug) std::cout << fmt::format("[DBG] %END: ip={}, arg={}", ip, to_string(o)) << std::endl;
                 if (ip + 1 != o.jmp) {
@@ -550,23 +547,23 @@ void compile(std::vector<op> program, std::string& output_path) {
                 }
                 break;
             }
-            case op_t::WHILE: {// Loop
+            case op_type::WHILE: {// Loop
                 output << "    ;; -- while --" << std::endl;
                 break;
             }
-            case op_t::DO: {
+            case op_type::DO: {
                 output << "    ;; -- do --" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    test rax, rax" << std::endl;
                 output << "    jz addr_" << o.jmp << std::endl;
                 break;
             }
-            case op_t::MEM: {// Memory
+            case op_type::MEM: {// Memory
                 output << "    ;; -- mem --" << std::endl;
                 output << "    push mem" << std::endl;
                 break;
             }
-            case op_t::LOAD: {
+            case op_type::LOAD: {
                 output << "    ;; -- load --" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    xor rbx, rbx" << std::endl;
@@ -574,21 +571,21 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    push rbx" << std::endl;
                 break;
             }
-            case op_t::STORE: {
+            case op_type::STORE: {
                 output << "    ;; -- store --" << std::endl;
                 output << "    pop rbx" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    mov [rax], bl" << std::endl;
                 break;
             }
-            case op_t::SYSCALL1: {// System
+            case op_type::SYSCALL1: {// System
                 output << "    ;; -- syscall1 --" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    pop rdi" << std::endl;
                 output << "    syscall" << std::endl;
                 break;
             }
-            case op_t::SYSCALL2: {
+            case op_type::SYSCALL2: {
                 output << "    ;; -- syscall2 --" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    pop rdi" << std::endl;
@@ -596,7 +593,7 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    syscall" << std::endl;
                 break;
             }
-            case op_t::SYSCALL3: {
+            case op_type::SYSCALL3: {
                 output << "    ;; -- syscall3 --" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    pop rdi" << std::endl;
@@ -605,7 +602,7 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    syscall" << std::endl;
                 break;
             }
-            case op_t::SYSCALL4: {
+            case op_type::SYSCALL4: {
                 output << "    ;; -- syscall4 --" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    pop rdi" << std::endl;
@@ -615,7 +612,7 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    syscall" << std::endl;
                 break;
             }
-            case op_t::SYSCALL5: {
+            case op_type::SYSCALL5: {
                 output << "    ;; -- syscall5 --" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    pop rdi" << std::endl;
@@ -626,7 +623,7 @@ void compile(std::vector<op> program, std::string& output_path) {
                 output << "    syscall" << std::endl;
                 break;
             }
-            case op_t::SYSCALL6: {
+            case op_type::SYSCALL6: {
                 output << "    ;; -- syscall5 --" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    pop rdi" << std::endl;
@@ -649,7 +646,7 @@ void compile(std::vector<op> program, std::string& output_path) {
     output << "    mov rdi, 0" << std::endl;
     output << "    syscall" << std::endl;
 
-    // unintialized data segment
+    // uninitialized data segment
     output << ";; ---" << std::endl;
     output << "segment .bss" << std::endl;
     output << "mem: resb " << MEM_CAPACITY << std::endl;
@@ -657,38 +654,38 @@ void compile(std::vector<op> program, std::string& output_path) {
     output.close();
 }
 
-std::vector<op>& cross_reference(std::vector<op>& program) {
+std::vector<op> &cross_reference(std::vector<op> &program) {
     if (is_debug) std::cout << "***** generating cross references *****" << std::endl;
     std::vector<ADDR_T> ip_stack;
     ADDR_T ip{0};
     while (ip < program.size()) {
-        op& o{program[ip]};
+        op &o{program[ip]};
         switch (o.type) {
 
-            case op_t::IF: {
+            case op_type::IF: {
                 push(ip_stack, ip);
                 break;
             }
-            case op_t::ELSE: {
+            case op_type::ELSE: {
                 auto iff_ip = pop(ip_stack);
-                op& iff_op  = program[iff_ip];
+                op &iff_op  = program[iff_ip];
                 if (is_debug) std::cout << fmt::format("[DBG] ELSE @ {} matched with {} @ {}", ip, to_string(iff_op.type), iff_ip) << std::endl;
                 iff_op.jmp = ip + 1;// IF will jump to instruction _after_ ELSE when fail
                 push(ip_stack, ip); // save the ELSE ip for END
                 break;
             }
-            case op_t::END: {
+            case op_type::END: {
                 // when we hit an END from:
                 // - executing the success branch of an IF with no ELSE -> jump to next instruction
                 // - the failure branch of an IF with an ELSE -> jump to next instruction
                 // - WHILE loop -> jump back to condition
                 auto block_ip = pop(ip_stack);// IF, ELSE, DO, ...
-                op& block_op  = program[block_ip];
+                op &block_op  = program[block_ip];
                 if (is_debug) std::cout << fmt::format("[DBG] END @ {} matched with {} @ {}", ip, to_string(block_op.type), block_ip) << std::endl;
-                if (block_op.type == op_t::IF || block_op.type == op_t::ELSE) {
+                if (block_op.type == op_type::IF || block_op.type == op_type::ELSE) {
                     o.jmp        = ip + 1;// Update END to jump to next instruction
                     block_op.jmp = ip;    // jump to this instruction (END)
-                } else if (block_op.type == op_t::DO) {
+                } else if (block_op.type == op_type::DO) {
                     o.jmp        = block_op.jmp;// END jumps to WHILE (stored in DO arg)
                     block_op.jmp = ip + 1;      // Update DO to jump _past_ END when fail
                 } else {
@@ -697,13 +694,13 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
                 }
                 break;
             }
-            case op_t::WHILE: {
+            case op_type::WHILE: {
                 push(ip_stack, ip);// save the WHILE ip for DO
                 break;
             }
-            case op_t::DO: {
+            case op_type::DO: {
                 auto wile_ip = pop(ip_stack);
-                op& wile_op  = program[wile_ip];
+                op &wile_op  = program[wile_ip];
                 if (is_debug) std::cout << fmt::format("[DBG] DO @ {} matched with {} @ {}", ip, to_string(wile_op.type), wile_ip) << std::endl;
                 o.jmp = wile_ip;   // record the WHILE ip
                 push(ip_stack, ip);// save the DO ip for END
@@ -723,36 +720,13 @@ std::vector<op>& cross_reference(std::vector<op>& program) {
     return program;
 }
 
-op parse_token_as_op(const tok& tok) {
-    switch (tok.type) {
-        case tok_t::WORD: {
-            return op{.type = to_op_t(tok.text), .loc = tok.loc};
-        }
-        case tok_t::INT: {
-            return op{.type = op_t::PUSH_INT, .loc = tok.loc, .int_value = tok.integer};
-        }
-        case tok_t::STRING: {
-            return op{.type = op_t::PUSH_STR, .loc = tok.loc, .str_value = tok.text};
-        }
-    }
-}
-
-std::vector<op> load_program_from_file(const std::string& file_path) {
-
-    lexer lexer;
-    auto tokens{lexer.lex_file(file_path)};
-
-    std::vector<op> program;
-    program.reserve(tokens.size());
-    for (auto& tok : tokens) {
-        if (is_debug) std::cout << fmt::format("[DBG] {}: {}", tok.loc.to_string(), tok.type == tok_t::WORD ? tok.text : std::to_string(tok.integer)) << std::endl;
-        program.push_back(parse_token_as_op(tok));
-    }
-
+std::vector<op> load_program_from_file(std::string const &file_path) {
+    auto tokens{lex_file(file_path)};
+    auto program{parse(tokens)};
     return cross_reference(program);
 }
 
-[[noreturn]] void usage(const std::string_view& compiler_name) {
+[[noreturn]] void usage(const std::string_view &compiler_name) {
     std::cout << fmt::format("Usage: {} [OPTIONS] <SUBCOMMAND> [ARGS]", compiler_name) << std::endl;
     std::cout << "  OPTIONS:" << std::endl;
     std::cout << "    -debug                Enable debug mode." << std::endl;
@@ -770,7 +744,7 @@ std::vector<op> load_program_from_file(const std::string& file_path) {
     std::exit(1);
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
 
     auto cur_arg{0};
     const std::string compiler_name{argv[cur_arg++]};

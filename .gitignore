@@ -1,5 +1,7 @@
+.idea/
 .cache/
 build/
+cmake-build-debug
 compile_commands.json
 .clangd/
 examples/*

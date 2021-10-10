@@ -1,10 +1,12 @@
 #pragma once
+#include "bimap.hpp"
 #include "lexer.hpp"
 #include <fmt/format.h>
-#include <map>
 #include <string>
+#include <utility>
+#include <vector>
 
-enum class op_t {
+enum class op_type {
     // Stack
     PUSH_INT,
     PUSH_STR,
@@ -45,16 +47,17 @@ enum class op_t {
     SYSCALL6
 };
 
-std::string to_string(op_t const t);
-op_t to_op_t(std::string const& s);
-bool is_op(std::string const& s);
-
 struct op {
-    op_t type;
-    loc loc;
+    op_type type;
+    token token;
     int64_t int_value{};
     std::string str_value{};
     uint64_t jmp{};
 };
 
-std::string to_string(op const& op);
+std::vector<op> parse(std::vector<token> const &tokens);
+
+std::string to_string(op_type t);
+op_type to_op_type(std::string const &s);
+bool is_op(std::string const &s);
+std::string to_string(op const &o);
