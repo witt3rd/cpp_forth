@@ -65,13 +65,18 @@ void simulate(std::vector<op> program) {
         if (is_debug) std::cout << fmt::format("[DBG] IP={:03} OP={}, STACK=", ip, to_string(o)) << stack << std::endl;
         ip++;// increment by default; may get overridden
         switch (o.type) {
+            case op_type::NOP: {
+                break;
+            }
             case op_type::PUSH_INT: {// Stack
                 push(stack, o.int_value);
                 if (is_debug) std::cout << fmt::format("[DBG] PUSH_INT {}", o.int_value) << std::endl;
                 break;
             }
-            case op_type::PUSH_STR: {// Stack
+            case op_type::PUSH_STR: {
                 //push(stack, o.str_value);
+                push(stack, (int64_t)1);
+                push(stack, (int64_t)99);
                 if (is_debug) std::cout << fmt::format("[DBG] PUSH_STR {}", o.str_value) << std::endl;
                 break;
             }
@@ -239,7 +244,7 @@ void simulate(std::vector<op> program) {
                 auto arg0           = pop(stack);
                 switch (syscall_number) {
                     case 60: {// exit
-                        int error_code = (int)arg0;
+                        int error_code = (int) arg0;
                         std::exit(error_code);
                     }
                     default: {
@@ -391,6 +396,9 @@ void compile(std::vector<op> program, std::string &output_path) {
         if (is_debug) std::cout << fmt::format("[DBG] ip={}, op={}", ip, to_string(o)) << std::endl;
         output << "addr_" << ip << ":" << std::endl;
         switch (o.type) {
+            case op_type::NOP:{
+                break;
+            }
             case op_type::PUSH_INT: {// Stack
                 output << "    ;; -- push %d --" << std::endl;
                 output << "    push " << o.int_value << std::endl;

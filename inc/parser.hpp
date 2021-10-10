@@ -7,6 +7,7 @@
 #include <vector>
 
 enum class op_type {
+    NOP,
     // Stack
     PUSH_INT,
     PUSH_STR,

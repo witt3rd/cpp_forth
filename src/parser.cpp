@@ -3,6 +3,7 @@
 
 bimap<op_type, std::string> const &get_op_bimap() {
     static bimap<op_type, std::string> const op_bimap{
+            {op_type::NOP, "NOP"},
             // Stack
             {op_type::PUSH_INT, "PUSH_INT"},
             {op_type::PUSH_STR, "PUSH_STR"},
@@ -45,23 +46,47 @@ bimap<op_type, std::string> const &get_op_bimap() {
 }
 
 static op parse_token_as_op(token const &token) {
+    op op{.type = op_type::NOP, .token = token, .str_value = token.text};
     switch (token.type) {
-        case token_type::IDENTIFIER: {
-            return op{.type = to_op_type(token.text), .token = token};
-        }
-        case token_type::INTEGER_LITERAL: {
-            return op{.type = op_type::PUSH_INT, .token = token, .int_value = std::stoll(token.text)};
-        }
-        case token_type::STRING_LITERAL: {
-            return op{.type = op_type::PUSH_STR, .token = token, .str_value = token.text};
-        }
-        case token_type::WHITESPACE:
-        case token_type::OPERATOR:
-        case token_type::FLOAT_LITERAL: {
+        case token_type::IDENTIFIER:
+            op.type = to_op_type(token.text);
+            break;
+        case token_type::INTEGER_LITERAL:
+            op.type      = op_type::PUSH_INT;
+            op.int_value = std::stoll(token.text);
+            break;
+        case token_type::FLOAT_LITERAL:
+            break;
+        case token_type::STRING_LITERAL:
+            op.type = op_type::PUSH_STR;
+            op.str_value = token.text;
+            break;
+        case token_type::DOT:
+            op.type = op_type::STORE;
+            break;
+        case token_type::COMMA:
+            op.type = op_type::LOAD;
+            break;
+        case token_type::PLUS:
+            op.type = op_type::PLUS;
+            break;
+        case token_type::MINUS:
+            op.type = op_type::MINUS;
+            break;
+        case token_type::LESS_THAN:
+            op.type = op_type::LT;
+            break;
+        case token_type::GREATER_THAN:
+            op.type = op_type::GT;
+            break;
+        case token_type::EQUAL:
+            op.type = op_type::EQUAL;
+            break;
+        default:
             std::cerr << fmt::format("[INF] Unsupported token: {}", to_string(token.type)) << std::endl;
             std::exit(1);
-        }
     }
+    return op;
 }
 
 std::vector<op> parse(std::vector<token> const &tokens) {
@@ -69,7 +94,8 @@ std::vector<op> parse(std::vector<token> const &tokens) {
     program.reserve(tokens.size());
     for (auto &tok : tokens) {
         std::cout << fmt::format("[DBG] parsing token: {}", to_string(tok)) << std::endl;
-        program.push_back(parse_token_as_op(tok));
+        auto op = parse_token_as_op(tok);
+        if (op.type != op_type::NOP) program.push_back(op);
     }
     return program;
 }
