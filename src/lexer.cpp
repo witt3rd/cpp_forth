@@ -3,13 +3,16 @@
 #include <fstream>
 #include <iostream>
 
-bimap<token_type, std::string> token_bimap{
-        {token_type::WHITESPACE, "WHITESPACE"},
-        {token_type::IDENTIFIER, "IDENTIFIER"},
-        {token_type::OPERATOR, "OPERATOR"},
-        {token_type::STRING_LITERAL, "STRING_LITERAL"},
-        {token_type::INTEGER_LITERAL, "INTEGER_LITERAL"},
-        {token_type::FLOAT_LITERAL, "FLOAT_LITERAL"}};
+bimap<token_type, std::string> const &get_token_bimap() {
+    static bimap<token_type, std::string> const token_bimap{
+            {token_type::WHITESPACE, "WHITESPACE"},
+            {token_type::IDENTIFIER, "IDENTIFIER"},
+            {token_type::OPERATOR, "OPERATOR"},
+            {token_type::STRING_LITERAL, "STRING_LITERAL"},
+            {token_type::INTEGER_LITERAL, "INTEGER_LITERAL"},
+            {token_type::FLOAT_LITERAL, "FLOAT_LITERAL"}};
+    return token_bimap;
+}
 
 std::vector<token> lex_stream(std::istream &in_stream) {
     std::vector<token> tokens{};
@@ -76,10 +79,10 @@ std::vector<token> lex_file(std::string const &file_path) {
 }
 
 std::string to_string(token_type t) {
-    return token_bimap.b(t);
+    return get_token_bimap().b(t);
 }
 token_type to_token_type(std::string const &s) {
-    return token_bimap.a(s);
+    return get_token_bimap().a(s);
 }
 std::string to_string(token const &t) {
     return fmt::format("{}:{}:{} {}:\"{}\"", t.file_path, t.row, t.column, to_string(t.type), t.text);
