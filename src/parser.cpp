@@ -60,6 +60,7 @@ static op parse_token_as_op(token const &token) {
         case token_type::STRING_LITERAL:
             op.type = op_type::PUSH_STR;
             op.str_value = token.text;
+            op.str_addr = -1;
             break;
         case token_type::DOT:
             op.type = op_type::STORE;
@@ -93,7 +94,7 @@ std::vector<op> parse(std::vector<token> const &tokens) {
     std::vector<op> program;
     program.reserve(tokens.size());
     for (auto &tok : tokens) {
-        std::cout << fmt::format("[DBG] parsing token: {}", to_string(tok)) << std::endl;
+        //std::cout << fmt::format("[DBG] parsing token: {}", to_string(tok)) << std::endl;
         auto op = parse_token_as_op(tok);
         if (op.type != op_type::NOP) program.push_back(op);
     }
@@ -110,5 +111,5 @@ bool is_op(std::string const &s) {
     return get_op_bimap().has_b(s);
 }
 std::string to_string(op const &o) {
-    return fmt::format("type: {}, token: {{}}, int_value: {}, str_value: {}, jmp: {}", to_string(o.type), to_string(o.token), o.int_value, o.str_value, o.jmp);
+    return fmt::format("type: {}, token: {{}}, str_value: {}, int/jmp/str: {}", to_string(o.type), to_string(o.token), o.str_value, o.int_value);
 }

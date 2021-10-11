@@ -38,7 +38,7 @@ static std::vector<token> lex_stream(std::string const &file_path, std::istream 
 
     char ch;
     while (in_stream.get(ch) && !in_stream.eof()) {
-        std::cout.put(ch);
+        //std::cout.put(ch);
         if (cur_token.type == token_type::COMMENT) {
             if (ch == '\n') {
                 end_token(tokens, cur_token);

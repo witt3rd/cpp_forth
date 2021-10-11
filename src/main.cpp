@@ -11,16 +11,17 @@
 #include <iterator>
 #include <string>
 #include <string_view>
+#include <map>
 #include <vector>
 
 bool is_debug = false;
 
+static const auto STR_CAPACITY = 640 * 1024;
 static const auto MEM_CAPACITY = 640 * 1024;
 
 #define STACK_T int64_t// simulated stack
 #define MEM_T char     // simulated memory
 #define ADDR_T uint64_t// virtual addresses (cross-refs)
-
 
 template<typename T>
 inline T pop(std::vector<T> &stack) {
@@ -50,18 +51,19 @@ std::ostream &operator<<(std::ostream &out, const std::vector<T> &stack) {
 
 void simulate(std::vector<op> program) {
 
+    if (is_debug) std::cout << "[DBG] ***** begin simulation *****" << std::endl;
+
     // simulate the stack
     std::vector<STACK_T> stack;
 
     // simulate memory
     std::vector<MEM_T> mem;
-    mem.reserve(MEM_CAPACITY);
-
-    if (is_debug) std::cout << "[DBG] ***** begin simulation *****" << std::endl;
+    mem.reserve(STR_CAPACITY + MEM_CAPACITY);
+    size_t str_size{0};
 
     uint64_t ip{0};
     while (ip < program.size()) {
-        op const &o{program[ip]};
+        op &o{program[ip]};
         if (is_debug) std::cout << fmt::format("[DBG] IP={:03} OP={}, STACK=", ip, to_string(o)) << stack << std::endl;
         ip++;// increment by default; may get overridden
         switch (o.type) {
@@ -74,9 +76,19 @@ void simulate(std::vector<op> program) {
                 break;
             }
             case op_type::PUSH_STR: {
-                //push(stack, o.str_value);
-                push(stack, (int64_t)1);
-                push(stack, (int64_t)99);
+                auto str_len = o.str_value.size();
+                if (o.str_addr == -1) {
+                    if (str_size + str_len >= STR_CAPACITY) {
+                        std::cerr << "out of string memory" << std::endl;
+                        std::exit(1);
+                    }
+                    o.str_addr = str_size;
+                    str_size += str_len;
+                    char *str = &mem[o.str_addr];
+                    std::strcpy(str, o.str_value.c_str());
+                }
+                push(stack, (STACK_T) str_len);
+                push(stack, (int64_t) o.str_addr);
                 if (is_debug) std::cout << fmt::format("[DBG] PUSH_STR {}", o.str_value) << std::endl;
                 break;
             }
@@ -190,20 +202,20 @@ void simulate(std::vector<op> program) {
             }
             case op_type::IF: {// Conditional
                 auto a = pop(stack);
-                if (a == 0) ip = o.jmp;
-                if (is_debug) std::cout << fmt::format("[DBG] IF {} = {} -> {}", a, a != 0, o.jmp) << std::endl;
+                if (a == 0) ip = o.jmp_addr;
+                if (is_debug) std::cout << fmt::format("[DBG] IF {} = {} -> {}", a, a != 0, o.jmp_addr) << std::endl;
                 break;
             }
             case op_type::ELSE: {
                 // when we hit an ELSE (from executing the success branch of an IF), jump to the END
-                ip = o.jmp;
-                if (is_debug) std::cout << fmt::format("[DBG] ELSE -> {}", o.jmp) << std::endl;
+                ip = o.jmp_addr;
+                if (is_debug) std::cout << fmt::format("[DBG] ELSE -> {}", o.jmp_addr) << std::endl;
                 break;
             }
             case op_type::END: {
                 // when we hit an END, jump to its saved ip
-                ip = o.jmp;
-                if (is_debug) std::cout << fmt::format("[DBG] END -> {}", o.jmp) << std::endl;
+                ip = o.jmp_addr;
+                if (is_debug) std::cout << fmt::format("[DBG] END -> {}", o.jmp_addr) << std::endl;
                 break;
             }
             case op_type::WHILE: {// Loop
@@ -215,13 +227,13 @@ void simulate(std::vector<op> program) {
                 auto a = pop(stack);
                 if (a == 0) {
                     // failed the WHILE condition, jump _past_ the END
-                    ip = o.jmp;
+                    ip = o.jmp_addr;
                 }
-                if (is_debug) std::cout << fmt::format("[DBG] DO {} = {} -> {}", a, a != 0, o.jmp) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] DO {} = {} -> {}", a, a != 0, o.jmp_addr) << std::endl;
                 break;
             }
             case op_type::MEM: {// Memory
-                push(stack, static_cast<STACK_T>(0));
+                push(stack, static_cast<STACK_T>(STR_CAPACITY));
                 if (is_debug) std::cout << fmt::format("[DBG] MEM") << std::endl;
                 break;
             }
@@ -390,23 +402,30 @@ void compile(std::vector<op> program, std::string &output_path) {
     output << "global _start" << std::endl;
     output << "_start:" << std::endl;
 
+    std::map<std::string, uint64_t> strings{};
+
     ADDR_T ip{0};
     while (ip < program.size()) {
         const op &o{program[ip]};
         if (is_debug) std::cout << fmt::format("[DBG] ip={}, op={}", ip, to_string(o)) << std::endl;
         output << "addr_" << ip << ":" << std::endl;
         switch (o.type) {
-            case op_type::NOP:{
+            case op_type::NOP: {
                 break;
             }
             case op_type::PUSH_INT: {// Stack
-                output << "    ;; -- push %d --" << std::endl;
+                output << "    ;; -- push int --" << std::endl;
                 output << "    push " << o.int_value << std::endl;
                 break;
             }
             case op_type::PUSH_STR: {
-                output << "    ;; -- push %s --" << std::endl;
-                output << "    push " << o.str_value << std::endl;
+                output << "    ;; -- push str --" << std::endl;
+                output << "    mov rax, " << o.str_value.size() << std::endl;
+                output << "    push rax" << std::endl;
+                if (!strings.contains(o.str_value)){
+                    strings[o.str_value] = strings.size();
+                }
+                output << "    push str_" << strings[o.str_value] << std::endl;
                 break;
             }
             case op_type::DUP: {
@@ -539,19 +558,19 @@ void compile(std::vector<op> program, std::string &output_path) {
                 output << "    ;; -- if --" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    test rax, rax" << std::endl;
-                output << "    jz addr_" << o.jmp << std::endl;
+                output << "    jz addr_" << o.jmp_addr << std::endl;
                 break;
             }
             case op_type::ELSE: {
                 output << "    ;; -- else --" << std::endl;
-                output << "    jmp addr_" << o.jmp << std::endl;
+                output << "    jmp addr_" << o.jmp_addr << std::endl;
                 break;
             }
             case op_type::END: {
                 output << "    ;; -- end --" << std::endl;
                 if (is_debug) std::cout << fmt::format("[DBG] %END: ip={}, arg={}", ip, to_string(o)) << std::endl;
-                if (ip + 1 != o.jmp) {
-                    output << "    jmp addr_" << o.jmp << std::endl;
+                if (ip + 1 != o.jmp_addr) {
+                    output << "    jmp addr_" << o.jmp_addr << std::endl;
                 }
                 break;
             }
@@ -563,7 +582,7 @@ void compile(std::vector<op> program, std::string &output_path) {
                 output << "    ;; -- do --" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    test rax, rax" << std::endl;
-                output << "    jz addr_" << o.jmp << std::endl;
+                output << "    jz addr_" << o.jmp_addr << std::endl;
                 break;
             }
             case op_type::MEM: {// Memory
@@ -656,6 +675,10 @@ void compile(std::vector<op> program, std::string &output_path) {
 
     // uninitialized data segment
     output << ";; ---" << std::endl;
+    output << "segment .data" << std::endl;
+    for (auto e: strings) {
+        output << "str_" << e.second << ": db \"" << e.first << "\", 10" << std::endl;
+    }
     output << "segment .bss" << std::endl;
     output << "mem: resb " << MEM_CAPACITY << std::endl;
 
@@ -678,8 +701,8 @@ std::vector<op> &cross_reference(std::vector<op> &program) {
                 auto iff_ip = pop(ip_stack);
                 op &iff_op  = program[iff_ip];
                 if (is_debug) std::cout << fmt::format("[DBG] ELSE @ {} matched with {} @ {}", ip, to_string(iff_op.type), iff_ip) << std::endl;
-                iff_op.jmp = ip + 1;// IF will jump to instruction _after_ ELSE when fail
-                push(ip_stack, ip); // save the ELSE ip for END
+                iff_op.jmp_addr = ip + 1;// IF will jump to instruction _after_ ELSE when fail
+                push(ip_stack, ip);      // save the ELSE ip for END
                 break;
             }
             case op_type::END: {
@@ -691,11 +714,11 @@ std::vector<op> &cross_reference(std::vector<op> &program) {
                 op &block_op  = program[block_ip];
                 if (is_debug) std::cout << fmt::format("[DBG] END @ {} matched with {} @ {}", ip, to_string(block_op.type), block_ip) << std::endl;
                 if (block_op.type == op_type::IF || block_op.type == op_type::ELSE) {
-                    o.jmp        = ip + 1;// Update END to jump to next instruction
-                    block_op.jmp = ip;    // jump to this instruction (END)
+                    o.jmp_addr        = ip + 1;// Update END to jump to next instruction
+                    block_op.jmp_addr = ip;    // jump to this instruction (END)
                 } else if (block_op.type == op_type::DO) {
-                    o.jmp        = block_op.jmp;// END jumps to WHILE (stored in DO arg)
-                    block_op.jmp = ip + 1;      // Update DO to jump _past_ END when fail
+                    o.jmp_addr        = block_op.jmp_addr;// END jumps to WHILE (stored in DO arg)
+                    block_op.jmp_addr = ip + 1;           // Update DO to jump _past_ END when fail
                 } else {
                     std::cerr << "[ERR] `END` can only close `IF`, `ELSE`, and `DO` blocks for now" << std::endl;
                     std::exit(1);
@@ -710,8 +733,8 @@ std::vector<op> &cross_reference(std::vector<op> &program) {
                 auto wile_ip = pop(ip_stack);
                 op &wile_op  = program[wile_ip];
                 if (is_debug) std::cout << fmt::format("[DBG] DO @ {} matched with {} @ {}", ip, to_string(wile_op.type), wile_ip) << std::endl;
-                o.jmp = wile_ip;   // record the WHILE ip
-                push(ip_stack, ip);// save the DO ip for END
+                o.jmp_addr = wile_ip;// record the WHILE ip
+                push(ip_stack, ip);  // save the DO ip for END
                 break;
             }
             default:

@@ -51,9 +51,12 @@ enum class op_type {
 struct op {
     op_type type;
     token token;
-    int64_t int_value{};
     std::string str_value{};
-    uint64_t jmp{};
+    union {
+        int64_t int_value{};
+        uint64_t jmp_addr;
+        uint64_t str_addr;
+    };
 };
 
 std::vector<op> parse(std::vector<token> const &tokens);
