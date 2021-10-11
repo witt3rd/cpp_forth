@@ -58,9 +58,9 @@ static op parse_token_as_op(token const &token) {
         case token_type::FLOAT_LITERAL:
             break;
         case token_type::STRING_LITERAL:
-            op.type = op_type::PUSH_STR;
+            op.type      = op_type::PUSH_STR;
             op.str_value = token.text;
-            op.str_addr = -1;
+            op.str_addr  = -1;
             break;
         case token_type::DOT:
             op.type = op_type::STORE;

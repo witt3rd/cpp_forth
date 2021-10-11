@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <cstdint>
 #include <filesystem>
-#include <fmt/core.h>
 #include <fmt/format.h>
 #include <fstream>
 #include <iostream>
@@ -677,7 +676,12 @@ void compile(std::vector<op> program, std::string &output_path) {
     output << ";; ---" << std::endl;
     output << "segment .data" << std::endl;
     for (auto e: strings) {
-        output << "str_" << e.second << ": db \"" << e.first << "\", 10" << std::endl;
+        output << "str_" << e.second << ":" << std::endl;
+        output << "    db ";
+        for(auto ch: e.first) {
+            output << int(ch) << ", ";
+        }
+        output << "0" << std::endl;
     }
     output << "segment .bss" << std::endl;
     output << "mem: resb " << MEM_CAPACITY << std::endl;

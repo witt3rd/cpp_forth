@@ -37,6 +37,7 @@ static std::vector<token> lex_stream(std::string const &file_path, std::istream 
     token cur_token{.file_path = file_path};
 
     char ch;
+    bool is_escaped{false};
     while (in_stream.get(ch) && !in_stream.eof()) {
         //std::cout.put(ch);
         if (cur_token.type == token_type::COMMENT) {
@@ -49,9 +50,31 @@ static std::vector<token> lex_stream(std::string const &file_path, std::istream 
                 cur_token.text += ch;
             }
         } else if (cur_token.type == token_type::STRING_LITERAL) {
-            if (ch == '\"') {
+            if (ch == '\\' && !is_escaped) {
+                is_escaped = true;
+            } else if (ch == '\"' && !is_escaped) {
                 end_token(tokens, cur_token);
             } else {
+                if (is_escaped) {
+                    switch(ch) {
+                        case 0: ch = '\0'; break;
+                        case 'a': ch = '\a'; break;
+                        case 'b': ch = '\b'; break;
+                        case 'f': ch = '\f'; break;
+                        case 'n': ch = '\n'; break;
+                        case 'r': ch = '\r'; break;
+                        case 't': ch = '\t'; break;
+                        case 'v': ch = '\v'; break;
+                        case '\\': ch = '\\'; break;
+                        case '\'': ch = '\''; break;
+                        case '"': ch = '\"'; break;
+                        case '?': ch = '\?'; break;
+                        default:
+                            std::cerr << "[ERR] Unsupported escape sequence: " << int(ch) << std::endl;
+                            std::exit(1);
+                    }
+                    is_escaped = false;
+                }
                 cur_token.text += ch;
             }
         } else {
