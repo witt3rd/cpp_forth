@@ -12,4 +12,5 @@ mem 2 + dup , 1 + .
 
 3 mem 1 1 syscall3
 
-69 60 syscall1
+// string literal
+"\n\"Hello,\n \\\bWorld\'\n" 1 1 syscall3
