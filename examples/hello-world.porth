@@ -1,0 +1,7 @@
+// -*- mode: opascal -*-
+
+include "examples/io.porth"
+
+macro msg "Hello, world\n" end
+
+msg write

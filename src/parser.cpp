@@ -1,5 +1,7 @@
 #include "parser.hpp"
+#include "lexer.hpp"
 #include <iostream>
+#include <map>
 
 bimap<op_type, std::string> const &get_op_bimap() {
     static bimap<op_type, std::string> const op_bimap{
@@ -31,6 +33,9 @@ bimap<op_type, std::string> const &get_op_bimap() {
             // Loop
             {op_type::WHILE, "WHILE"},
             {op_type::DO, "DO"},
+            // Macros
+            {op_type::MACRO, "MACRO"},
+            {op_type::INCLUDE, "INCLUDE"},
             // Memory
             {op_type::MEM, "MEM"},
             {op_type::LOAD, ","},
@@ -49,13 +54,22 @@ static op parse_token_as_op(token const &token) {
     op op{.type = op_type::NOP, .token = token, .str_value = token.text};
     switch (token.type) {
         case token_type::IDENTIFIER:
-            op.type = to_op_type(token.text);
+            try {
+                op.type = to_op_type(token.text);
+            } catch (std::out_of_range &e) {
+                std::cerr << fmt::format("[ERR] {}: invalid identifier", to_string(token)) << std::endl;
+                std::exit(1);
+            }
             break;
         case token_type::INTEGER_LITERAL:
             op.type      = op_type::PUSH_INT;
             op.int_value = std::stoll(token.text);
             break;
         case token_type::FLOAT_LITERAL:
+            break;
+        case token_type::CHAR_LITERAL:
+            op.type      = op_type::PUSH_INT;
+            op.int_value = token.text[0];
             break;
         case token_type::STRING_LITERAL:
             op.type      = op_type::PUSH_STR;
@@ -84,19 +98,85 @@ static op parse_token_as_op(token const &token) {
             op.type = op_type::EQUAL;
             break;
         default:
-            std::cerr << fmt::format("[INF] Unsupported token: {}", to_string(token.type)) << std::endl;
+            std::cerr << fmt::format("[INF] unsupported token: {}", to_string(token.type)) << std::endl;
             std::exit(1);
     }
     return op;
 }
 
-std::vector<op> parse(std::vector<token> const &tokens) {
+std::vector<op> parse(std::vector<token> &tokens) {
     std::vector<op> program;
-    program.reserve(tokens.size());
-    for (auto &tok : tokens) {
-        //std::cout << fmt::format("[DBG] parsing token: {}", to_string(tok)) << std::endl;
+    std::map<std::string, macro> macros;
+    size_t i{0};
+    while (i < tokens.size()) {
+        auto tok = tokens[i++];
+        //        std::cout << fmt::format("[DBG] parsing token: {}", to_string(tok)) << std::endl;
+
+        // expand macros
+        if (macros.contains(tok.text)) {
+            auto m = macros[tok.text];
+            for (auto const &t : m.body_tokens) {
+                program.push_back(parse_token_as_op(t));
+            }
+            continue;
+        }
+
         auto op = parse_token_as_op(tok);
-        if (op.type != op_type::NOP) program.push_back(op);
+
+        if (op.type == op_type::MACRO) {
+            if (i >= tokens.size()) {
+                std::cerr << fmt::format("[ERR] incomplete macro definition: {}", to_string(tok)) << std::endl;
+                std::exit(1);
+            }
+            auto name = tokens[i++];
+            if (name.type != token_type::IDENTIFIER) {
+                std::cerr << fmt::format("[ERR] macro name must be an identifier: {}", to_string(name)) << std::endl;
+                std::exit(1);
+            }
+            if (macros.contains(name.text)) {
+                std::cerr << fmt::format("[ERR] macro already defined: {}", to_string(name)) << std::endl;
+                std::cerr << fmt::format("[INF] original macro: {}", to_string(macros[name.text].macro_token)) << std::endl;
+                std::exit(1);
+            }
+            macro m{.macro_token = tok};
+            auto blocks{0};
+            auto complete{false};
+            while (i < tokens.size()) {
+                tok = tokens[i++];
+                if (tok.type == token_type::IDENTIFIER) {
+                    if (tok.text == "IF" || tok.text == "WHILE") blocks++;
+                    if (tok.text == "END") {
+                        if (blocks) blocks--;
+                        else {
+                            complete = true;
+                            break;
+                        }
+                    }
+                }
+                m.body_tokens.push_back(tok);
+            }
+            if (!complete || m.body_tokens.size() == 0) {
+                std::cerr << fmt::format("[ERR] incomplete macro definition: {}", to_string(m.macro_token)) << std::endl;
+                std::exit(1);
+            }
+            macros[name.text] = m;
+        } else if (op.type == op_type::INCLUDE) {
+            if (i >= tokens.size()) {
+                std::cerr << fmt::format("[ERR] incomplete include definition: {}", to_string(tok)) << std::endl;
+                std::exit(1);
+            }
+            auto file_name = tokens[i++];
+            if (file_name.type != token_type::STRING_LITERAL) {
+                std::cerr << fmt::format("[ERR] include file name must be a string: {}", to_string(file_name)) << std::endl;
+                std::exit(1);
+            }
+            auto included_tokens = lex_file(file_name.text);
+            //            std::cout << fmt::format("[DBG] including {} tokens from {}", included_tokens.size(), file_name.text) << std::endl;
+            auto it = tokens.begin() + i;
+            tokens.insert(it, included_tokens.begin(), included_tokens.end());
+        } else if (op.type != op_type::NOP) {
+            program.push_back(op);
+        }
     }
     return program;
 }
@@ -104,9 +184,11 @@ std::vector<op> parse(std::vector<token> const &tokens) {
 std::string to_string(op_type t) {
     return get_op_bimap().b(t);
 }
+
 op_type to_op_type(std::string const &s) {
     return get_op_bimap().a(s);
 }
+
 bool is_op(std::string const &s) {
     return get_op_bimap().has_b(s);
 }

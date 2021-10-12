@@ -35,6 +35,9 @@ enum class op_type {
     // Loop
     WHILE,
     DO,
+    // Macros
+    MACRO,
+    INCLUDE,
     // Memory
     MEM,
     LOAD,
@@ -59,9 +62,14 @@ struct op {
     };
 };
 
-std::vector<op> parse(std::vector<token> const &tokens);
+std::vector<op> parse(std::vector<token> &tokens);
 
 std::string to_string(op_type t);
 op_type to_op_type(std::string const &s);
 bool is_op(std::string const &s);
 std::string to_string(op const &o);
+
+struct macro {
+    token macro_token;
+    std::vector<token> body_tokens;
+};
