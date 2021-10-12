@@ -1,0 +1,6 @@
+// -*- mode: opascal -*-
+
+macro write 1 1 syscall3 end
+macro msg "Hello, world\n" end
+
+msg write

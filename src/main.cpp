@@ -8,9 +8,9 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <map>
 #include <string>
 #include <string_view>
-#include <map>
 #include <vector>
 
 bool is_debug = false;
@@ -25,7 +25,7 @@ static const auto MEM_CAPACITY = 640 * 1024;
 template<typename T>
 inline T pop(std::vector<T> &stack) {
     if (stack.empty()) {
-        std::cerr << "[ERR] Stack underflow" << std::endl;
+        std::cerr << "[ERR] stack underflow" << std::endl;
         std::exit(1);
     }
     auto x = stack.back();
@@ -66,9 +66,9 @@ void simulate(std::vector<op> program) {
         if (is_debug) std::cout << fmt::format("[DBG] IP={:03} OP={}, STACK=", ip, to_string(o)) << stack << std::endl;
         ip++;// increment by default; may get overridden
         switch (o.type) {
-            case op_type::NOP: {
+            case op_type::MACRO:
+            case op_type::NOP:
                 break;
-            }
             case op_type::PUSH_INT: {// Stack
                 push(stack, o.int_value);
                 if (is_debug) std::cout << fmt::format("[DBG] PUSH_INT {}", o.int_value) << std::endl;
@@ -259,7 +259,7 @@ void simulate(std::vector<op> program) {
                         std::exit(error_code);
                     }
                     default: {
-                        std::cerr << fmt::format("[ERR] Unsupported SYSCALL1: {}({})", syscall_number, arg0) << std::endl;
+                        std::cerr << fmt::format("[ERR] unsupported SYSCALL1: {}({})", syscall_number, arg0) << std::endl;
                         std::exit(1);
                     }
                 }
@@ -271,7 +271,7 @@ void simulate(std::vector<op> program) {
                 auto arg1           = pop(stack);
                 switch (syscall_number) {
                     default: {
-                        std::cerr << fmt::format("[ERR] Unsupported SYSCALL2: {}({},{})", syscall_number, arg0, arg1) << std::endl;
+                        std::cerr << fmt::format("[ERR] unsupported SYSCALL2: {}({},{})", syscall_number, arg0, arg1) << std::endl;
                         std::exit(1);
                     }
                 }
@@ -300,14 +300,14 @@ void simulate(std::vector<op> program) {
                                 break;
                             }
                             default: {
-                                std::cerr << fmt::format("[ERR] Unknown fd {} for write syscall", fd) << std::endl;
+                                std::cerr << fmt::format("[ERR] unknown fd {} for write syscall", fd) << std::endl;
                                 std::exit(1);
                             }
                         }
                         break;
                     }
                     default: {
-                        std::cerr << fmt::format("[ERR] Unsupported SYSCALL3: {}({}, {}, {})", syscall_number, arg0, arg1, arg2) << std::endl;
+                        std::cerr << fmt::format("[ERR] unsupported SYSCALL3: {}({}, {}, {})", syscall_number, arg0, arg1, arg2) << std::endl;
                         std::exit(1);
                     }
                 }
@@ -321,7 +321,7 @@ void simulate(std::vector<op> program) {
                 auto arg3           = pop(stack);
                 switch (syscall_number) {
                     default: {
-                        std::cerr << fmt::format("[ERR] Unsupported SYSCALL4: {}({}, {}, {}, {})", syscall_number, arg0, arg1, arg2, arg3) << std::endl;
+                        std::cerr << fmt::format("[ERR] unsupported SYSCALL4: {}({}, {}, {}, {})", syscall_number, arg0, arg1, arg2, arg3) << std::endl;
                         std::exit(1);
                     }
                 }
@@ -336,7 +336,7 @@ void simulate(std::vector<op> program) {
                 auto arg4           = pop(stack);
                 switch (syscall_number) {
                     default: {
-                        std::cerr << fmt::format("[ERR] Unsupported SYSCALL5: {}({},{},{},{},{})", syscall_number, arg0, arg1, arg2, arg3, arg4) << std::endl;
+                        std::cerr << fmt::format("[ERR] unsupported SYSCALL5: {}({},{},{},{},{})", syscall_number, arg0, arg1, arg2, arg3, arg4) << std::endl;
                         std::exit(1);
                     }
                 }
@@ -352,7 +352,7 @@ void simulate(std::vector<op> program) {
                 auto arg5           = pop(stack);
                 switch (syscall_number) {
                     default: {
-                        std::cerr << fmt::format("[ERR] Unsupported SYSCALL6: {}({},{},{},{},{},{})", syscall_number, arg0, arg1, arg2, arg3, arg4, arg5) << std::endl;
+                        std::cerr << fmt::format("[ERR] unsupported SYSCALL6: {}({},{},{},{},{},{})", syscall_number, arg0, arg1, arg2, arg3, arg4, arg5) << std::endl;
                         std::exit(1);
                     }
                 }
@@ -362,7 +362,7 @@ void simulate(std::vector<op> program) {
     }
 
     if (!stack.empty()) {
-        std::cerr << "[WRN] Program terminated with non-empty stack: " << stack << std::endl;
+        std::cerr << "[WRN] program terminated with non-empty stack: " << stack << std::endl;
     }
 }
 
@@ -409,9 +409,9 @@ void compile(std::vector<op> program, std::string &output_path) {
         if (is_debug) std::cout << fmt::format("[DBG] ip={}, op={}", ip, to_string(o)) << std::endl;
         output << "addr_" << ip << ":" << std::endl;
         switch (o.type) {
-            case op_type::NOP: {
+            case op_type::MACRO:
+            case op_type::NOP:
                 break;
-            }
             case op_type::PUSH_INT: {// Stack
                 output << "    ;; -- push int --" << std::endl;
                 output << "    push " << o.int_value << std::endl;
@@ -421,7 +421,7 @@ void compile(std::vector<op> program, std::string &output_path) {
                 output << "    ;; -- push str --" << std::endl;
                 output << "    mov rax, " << o.str_value.size() << std::endl;
                 output << "    push rax" << std::endl;
-                if (!strings.contains(o.str_value)){
+                if (!strings.contains(o.str_value)) {
                     strings[o.str_value] = strings.size();
                 }
                 output << "    push str_" << strings[o.str_value] << std::endl;
@@ -675,10 +675,10 @@ void compile(std::vector<op> program, std::string &output_path) {
     // uninitialized data segment
     output << ";; ---" << std::endl;
     output << "segment .data" << std::endl;
-    for (auto e: strings) {
+    for (auto e : strings) {
         output << "str_" << e.second << ":" << std::endl;
         output << "    db ";
-        for(auto ch: e.first) {
+        for (auto ch : e.first) {
             output << int(ch) << ", ";
         }
         output << "0" << std::endl;
@@ -748,7 +748,7 @@ std::vector<op> &cross_reference(std::vector<op> &program) {
     }
 
     if (!ip_stack.empty()) {
-        std::cerr << "[ERR] Cross reference stack is non-empty (e.g., unmatched if/else/end)" << std::endl;
+        std::cerr << "[ERR] cross reference stack is non-empty (e.g., unmatched if/else/end)" << std::endl;
         std::exit(1);
     }
 
@@ -789,10 +789,10 @@ int main(int argc, char **argv) {
         const std::string arg = argv[cur_arg];
         if (arg == "-debug") {
             is_debug = true;
-            std::cout << "[DBG] Debug enabled" << std::endl;
+            std::cout << "[DBG] debug enabled" << std::endl;
             cur_arg++;
         } else if (arg.starts_with("-")) {
-            std::cerr << fmt::format("[ERR] Unknown option: {}", arg) << std::endl;
+            std::cerr << fmt::format("[ERR] unknown option: {}", arg) << std::endl;
             usage(compiler_name);
         } else {
             break;
@@ -800,7 +800,7 @@ int main(int argc, char **argv) {
     }
 
     if (argc <= cur_arg) {
-        std::cerr << "[ERR] Missing subcommand" << std::endl;
+        std::cerr << "[ERR] missing subcommand" << std::endl;
         usage(compiler_name);
     }
 
@@ -808,7 +808,7 @@ int main(int argc, char **argv) {
 
     if (subcommand == "sim") {
         if (argc <= cur_arg) {
-            std::cerr << "[ERR] Missing input file path for simulation" << std::endl;
+            std::cerr << "[ERR] missing input file path for simulation" << std::endl;
             usage(compiler_name);
         }
         const std::string input_file_path{argv[cur_arg++]};
@@ -816,7 +816,7 @@ int main(int argc, char **argv) {
         const std::vector<op> input_program = load_program_from_file(std::string{input_file_path});
 
         if (input_program.size() == 0) {
-            std::cerr << "[ERR] invalid program" << std::endl;
+            std::cerr << "[ERR] no operations to perform" << std::endl;
             std::exit(1);
         }
 
@@ -829,10 +829,10 @@ int main(int argc, char **argv) {
             const std::string arg = argv[cur_arg];
             if (arg == "-r") {
                 is_run = true;
-                if (is_debug) std::cout << "[DBG] Run enabled" << std::endl;
+                if (is_debug) std::cout << "[DBG] run enabled" << std::endl;
                 cur_arg++;
             } else if (arg.starts_with("-")) {
-                std::cerr << fmt::format("[ERR] Unknown option: {}", arg) << std::endl;
+                std::cerr << fmt::format("[ERR] unknown option: {}", arg) << std::endl;
                 usage(compiler_name);
             } else {
                 break;
@@ -840,7 +840,7 @@ int main(int argc, char **argv) {
         }
 
         if (argc <= cur_arg) {
-            std::cerr << "[ERR] Missing input file path for compilation" << std::endl;
+            std::cerr << "[ERR] missing input file path for compilation" << std::endl;
             usage(compiler_name);
         }
         const std::string input_file_path{argv[cur_arg++]};
@@ -888,9 +888,8 @@ int main(int argc, char **argv) {
             std::cout << res.output;
         }
     } else {
-        std::cerr << fmt::format("[ERR] Unknown subcommand: {}", subcommand) << std::endl;
+        std::cerr << fmt::format("[ERR] unknown subcommand: {}", subcommand) << std::endl;
         usage(compiler_name);
     }
-
     return 0;
 }

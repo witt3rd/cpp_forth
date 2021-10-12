@@ -35,16 +35,16 @@ static void end_token(std::vector<token> &tokens, token &token) {
 static std::vector<token> lex_stream(std::string const &file_path, std::istream &in_stream) {
     std::vector<token> tokens{};
     token cur_token{.file_path = file_path};
-
+    size_t column = 1;
     char ch;
     bool is_escaped{false};
     while (in_stream.get(ch) && !in_stream.eof()) {
-        //std::cout.put(ch);
+//        std::cout << fmt::format("{:03}) [{:03}] {}", column, int(ch), ch) << std::endl;
         if (cur_token.type == token_type::COMMENT) {
             if (ch == '\n') {
                 end_token(tokens, cur_token);
                 cur_token.line++;
-                cur_token.column = 1;
+                column = 1;
                 continue;
             } else {
                 cur_token.text += ch;
@@ -56,21 +56,45 @@ static std::vector<token> lex_stream(std::string const &file_path, std::istream 
                 end_token(tokens, cur_token);
             } else {
                 if (is_escaped) {
-                    switch(ch) {
-                        case 0: ch = '\0'; break;
-                        case 'a': ch = '\a'; break;
-                        case 'b': ch = '\b'; break;
-                        case 'f': ch = '\f'; break;
-                        case 'n': ch = '\n'; break;
-                        case 'r': ch = '\r'; break;
-                        case 't': ch = '\t'; break;
-                        case 'v': ch = '\v'; break;
-                        case '\\': ch = '\\'; break;
-                        case '\'': ch = '\''; break;
-                        case '"': ch = '\"'; break;
-                        case '?': ch = '\?'; break;
+                    switch (ch) {
+                        case 0:
+                            ch = '\0';
+                            break;
+                        case 'a':
+                            ch = '\a';
+                            break;
+                        case 'b':
+                            ch = '\b';
+                            break;
+                        case 'f':
+                            ch = '\f';
+                            break;
+                        case 'n':
+                            ch = '\n';
+                            break;
+                        case 'r':
+                            ch = '\r';
+                            break;
+                        case 't':
+                            ch = '\t';
+                            break;
+                        case 'v':
+                            ch = '\v';
+                            break;
+                        case '\\':
+                            ch = '\\';
+                            break;
+                        case '\'':
+                            ch = '\'';
+                            break;
+                        case '"':
+                            ch = '\"';
+                            break;
+                        case '?':
+                            ch = '\?';
+                            break;
                         default:
-                            std::cerr << "[ERR] Unsupported escape sequence: " << int(ch) << std::endl;
+                            std::cerr << "[ERR] unsupported escape sequence: " << int(ch) << std::endl;
                             std::exit(1);
                     }
                     is_escaped = false;
@@ -90,41 +114,50 @@ static std::vector<token> lex_stream(std::string const &file_path, std::istream 
                 case '8':
                 case '9':
                     if (cur_token.type == token_type::WHITESPACE) {
-                        cur_token.type = token_type::INTEGER_LITERAL;
-                        cur_token.text += ch;
+                        cur_token.type   = token_type::INTEGER_LITERAL;
+                        cur_token.text   = ch;
+                        cur_token.column = column;
                     } else {
                         cur_token.text += ch;
                     }
                     break;
                 case '\"':
                     end_token(tokens, cur_token);
-                    cur_token.type = token_type::STRING_LITERAL;
+                    cur_token.type   = token_type::STRING_LITERAL;
+                    cur_token.column = column;
                     break;
                 case '.':
                     if (cur_token.type == token_type::INTEGER_LITERAL) {
                         cur_token.type = token_type::FLOAT_LITERAL;
                         cur_token.text += ch;
                     } else {
-                        cur_token.type = token_type::DOT;
+                        cur_token.type   = token_type::DOT;
+                        cur_token.column = column;
                     }
                     break;
                 case ',':
-                    cur_token.type = token_type::COMMA;
+                    cur_token.type   = token_type::COMMA;
+                    cur_token.column = column;
                     break;
                 case '+':
-                    cur_token.type = token_type::PLUS;
+                    cur_token.type   = token_type::PLUS;
+                    cur_token.column = column;
                     break;
                 case '-':
-                    cur_token.type = token_type::MINUS;
+                    cur_token.type   = token_type::MINUS;
+                    cur_token.column = column;
                     break;
                 case '<':
-                    cur_token.type = token_type::LESS_THAN;
+                    cur_token.type   = token_type::LESS_THAN;
+                    cur_token.column = column;
                     break;
                 case '>':
-                    cur_token.type = token_type::GREATER_THAN;
+                    cur_token.type   = token_type::GREATER_THAN;
+                    cur_token.column = column;
                     break;
                 case '=':
-                    cur_token.type = token_type::EQUAL;
+                    cur_token.type   = token_type::EQUAL;
+                    cur_token.column = column;
                     break;
                 case ' ':
                 case '\t':
@@ -135,7 +168,7 @@ static std::vector<token> lex_stream(std::string const &file_path, std::istream 
                 case '\n':
                     end_token(tokens, cur_token);
                     cur_token.line++;
-                    cur_token.column = 1;
+                    column = 1;
                     continue;
 
                 case '/':
@@ -144,18 +177,20 @@ static std::vector<token> lex_stream(std::string const &file_path, std::istream 
                     } else if (cur_token.type == token_type::SLASH) {
                         cur_token.type = token_type::COMMENT;
                     }
+                    cur_token.column = column;
                     break;
 
                 default:
                     // allow identifiers to start with an integer (e.g., "2dup")
                     if (cur_token.type == token_type::WHITESPACE || cur_token.type == token_type::INTEGER_LITERAL) {
                         cur_token.type = token_type::IDENTIFIER;
+                        cur_token.column = column;
                     }
                     cur_token.text += (char) toupper(ch);
                     break;
             }
         }
-        cur_token.column++;
+        column++;
     }
     return tokens;
 }
@@ -165,7 +200,7 @@ std::vector<token> lex_file(std::string const &file_path) {
 
     std::ifstream f{file_path};
     if (!f.is_open()) {
-        std::cerr << "[ERR] Unable to open input file" << std::endl;
+        std::cerr << "[ERR] unable to open input file" << std::endl;
         std::exit(1);
     }
 
