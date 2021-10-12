@@ -1,6 +1,7 @@
 #include "lexer.hpp"
 #include <fstream>
 #include <iostream>
+#include <filesystem>
 
 static bimap<token_type, std::string> const &get_token_bimap() {
     static bimap<token_type, std::string> const token_bimap{
@@ -196,11 +197,12 @@ static std::vector<token> lex_stream(std::string const &file_path, std::istream 
 }
 
 std::vector<token> lex_file(std::string const &file_path) {
-    std::cout << "***** lexing file *****" << std::endl;
+    std::cout << fmt::format("[INF] lexing file: {}", file_path) << std::endl;
 
     std::ifstream f{file_path};
     if (!f.is_open()) {
-        std::cerr << "[ERR] unable to open input file" << std::endl;
+        auto cwd = std::filesystem::current_path();
+        std::cerr << fmt::format("[ERR] unable to open input file: {}, cwd: {}", file_path, cwd.c_str()) << std::endl;
         std::exit(1);
     }
 

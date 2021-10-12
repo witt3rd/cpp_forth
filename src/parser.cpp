@@ -1,4 +1,5 @@
 #include "parser.hpp"
+#include "lexer.hpp"
 #include <iostream>
 #include <map>
 
@@ -34,6 +35,7 @@ bimap<op_type, std::string> const &get_op_bimap() {
             {op_type::DO, "DO"},
             // Macros
             {op_type::MACRO, "MACRO"},
+            {op_type::INCLUDE, "INCLUDE"},
             // Memory
             {op_type::MEM, "MEM"},
             {op_type::LOAD, ","},
@@ -98,13 +100,15 @@ static op parse_token_as_op(token const &token) {
     return op;
 }
 
-std::vector<op> parse(std::vector<token> const &tokens) {
+std::vector<op> parse(std::vector<token> &tokens) {
     std::vector<op> program;
     std::map<std::string, macro> macros;
     size_t i{0};
     while (i < tokens.size()) {
         auto tok = tokens[i++];
 //        std::cout << fmt::format("[DBG] parsing token: {}", to_string(tok)) << std::endl;
+
+        // expand macros
         if (macros.contains(tok.text)) {
             auto m = macros[tok.text];
             for (auto const &t : m.body_tokens) {
@@ -112,7 +116,9 @@ std::vector<op> parse(std::vector<token> const &tokens) {
             }
             continue;
         }
+
         auto op = parse_token_as_op(tok);
+
         if (op.type == op_type::MACRO) {
             if (i >= tokens.size()) {
                 std::cerr << fmt::format("[ERR] incomplete macro definition: {}", to_string(tok)) << std::endl;
@@ -120,7 +126,7 @@ std::vector<op> parse(std::vector<token> const &tokens) {
             }
             auto name = tokens[i++];
             if (name.type != token_type::IDENTIFIER) {
-                std::cerr << fmt::format("[ERR] token name must be identifier: {}", to_string(name)) << std::endl;
+                std::cerr << fmt::format("[ERR] macro name must be an identifier: {}", to_string(name)) << std::endl;
                 std::exit(1);
             }
             if (macros.contains(name.text)) {
@@ -150,6 +156,20 @@ std::vector<op> parse(std::vector<token> const &tokens) {
                 std::exit(1);
             }
             macros[name.text] = m;
+        } else if (op.type == op_type::INCLUDE) {
+            if (i >= tokens.size()) {
+                std::cerr << fmt::format("[ERR] incomplete include definition: {}", to_string(tok)) << std::endl;
+                std::exit(1);
+            }
+            auto file_name = tokens[i++];
+            if (file_name.type != token_type::STRING_LITERAL) {
+                std::cerr << fmt::format("[ERR] include file name must be a string: {}", to_string(file_name)) << std::endl;
+                std::exit(1);
+            }
+            auto included_tokens = lex_file(file_name.text);
+//            std::cout << fmt::format("[DBG] including {} tokens from {}", included_tokens.size(), file_name.text) << std::endl;
+            auto it = tokens.begin() + i;
+            tokens.insert(it, included_tokens.begin(), included_tokens.end());
         } else if (op.type != op_type::NOP) {
             program.push_back(op);
         }
