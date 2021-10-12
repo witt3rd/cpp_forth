@@ -5,7 +5,6 @@
 
 bimap<op_type, std::string> const &get_op_bimap() {
     static bimap<op_type, std::string> const op_bimap{
-            {op_type::NOP, "NOP"},
             // Stack
             {op_type::PUSH_INT, "PUSH_INT"},
             {op_type::PUSH_STR, "PUSH_STR"},
@@ -33,9 +32,6 @@ bimap<op_type, std::string> const &get_op_bimap() {
             // Loop
             {op_type::WHILE, "WHILE"},
             {op_type::DO, "DO"},
-            // Macros
-            {op_type::MACRO, "MACRO"},
-            {op_type::INCLUDE, "INCLUDE"},
             // Memory
             {op_type::MEM, "MEM"},
             {op_type::LOAD, ","},
@@ -51,57 +47,41 @@ bimap<op_type, std::string> const &get_op_bimap() {
 }
 
 static op parse_token_as_op(token const &token) {
-    op op{.type = op_type::NOP, .token = token, .str_value = token.text};
     switch (token.type) {
         case token_type::IDENTIFIER:
             try {
-                op.type = to_op_type(token.text);
+                return op{.type = to_op_type(token.text), .token = token, .str_value = token.text};
             } catch (std::out_of_range &e) {
                 std::cerr << fmt::format("[ERR] {}: invalid identifier", to_string(token)) << std::endl;
                 std::exit(1);
             }
-            break;
         case token_type::INTEGER_LITERAL:
-            op.type      = op_type::PUSH_INT;
-            op.int_value = std::stoll(token.text);
-            break;
+            return op{.type = op_type::PUSH_INT, .token = token, .int_value = std::stoll(token.text)};
         case token_type::FLOAT_LITERAL:
-            break;
+            std::cerr << "FLOAT_LITERAL not implemented" << std::endl;
+            std::exit(1);
         case token_type::CHAR_LITERAL:
-            op.type      = op_type::PUSH_INT;
-            op.int_value = token.text[0];
-            break;
+            return op{.type = op_type::PUSH_INT, .token = token, .int_value = (int64_t) *token.text.c_str()};
         case token_type::STRING_LITERAL:
-            op.type      = op_type::PUSH_STR;
-            op.str_value = token.text;
-            op.str_addr  = -1;
-            break;
+            return op{.type = op_type::PUSH_STR, .token = token, .str_value = token.text, .str_addr = static_cast<uint64_t>(-1)};
         case token_type::DOT:
-            op.type = op_type::STORE;
-            break;
+            return op{.type = op_type::STORE, .token = token};
         case token_type::COMMA:
-            op.type = op_type::LOAD;
-            break;
+            return op{.type = op_type::LOAD, .token = token};
         case token_type::PLUS:
-            op.type = op_type::PLUS;
-            break;
+            return op{.type = op_type::PLUS, .token = token};
         case token_type::MINUS:
-            op.type = op_type::MINUS;
-            break;
+            return op{.type = op_type::MINUS, .token = token};
         case token_type::LESS_THAN:
-            op.type = op_type::LT;
-            break;
+            return op{.type = op_type::LT, .token = token};
         case token_type::GREATER_THAN:
-            op.type = op_type::GT;
-            break;
+            return op{.type = op_type::GT, .token = token};
         case token_type::EQUAL:
-            op.type = op_type::EQUAL;
-            break;
+            return op{.type = op_type::EQUAL, .token = token};
         default:
             std::cerr << fmt::format("[INF] unsupported token: {}", to_string(token.type)) << std::endl;
             std::exit(1);
     }
-    return op;
 }
 
 std::vector<op> parse(std::vector<token> &tokens) {
@@ -121,9 +101,7 @@ std::vector<op> parse(std::vector<token> &tokens) {
             continue;
         }
 
-        auto op = parse_token_as_op(tok);
-
-        if (op.type == op_type::MACRO) {
+        if (tok.text == "MACRO") {
             if (i >= tokens.size()) {
                 std::cerr << fmt::format("[ERR] incomplete macro definition: {}", to_string(tok)) << std::endl;
                 std::exit(1);
@@ -155,12 +133,12 @@ std::vector<op> parse(std::vector<token> &tokens) {
                 }
                 m.body_tokens.push_back(tok);
             }
-            if (!complete || m.body_tokens.size() == 0) {
+            if (!complete || m.body_tokens.empty()) {
                 std::cerr << fmt::format("[ERR] incomplete macro definition: {}", to_string(m.macro_token)) << std::endl;
                 std::exit(1);
             }
             macros[name.text] = m;
-        } else if (op.type == op_type::INCLUDE) {
+        } else if (tok.text == "INCLUDE") {
             if (i >= tokens.size()) {
                 std::cerr << fmt::format("[ERR] incomplete include definition: {}", to_string(tok)) << std::endl;
                 std::exit(1);
@@ -172,9 +150,10 @@ std::vector<op> parse(std::vector<token> &tokens) {
             }
             auto included_tokens = lex_file(file_name.text);
             //            std::cout << fmt::format("[DBG] including {} tokens from {}", included_tokens.size(), file_name.text) << std::endl;
-            auto it = tokens.begin() + i;
+            auto it = tokens.begin() + (long)i;
             tokens.insert(it, included_tokens.begin(), included_tokens.end());
-        } else if (op.type != op_type::NOP) {
+        } else {
+            auto op = parse_token_as_op(tok);
             program.push_back(op);
         }
     }
