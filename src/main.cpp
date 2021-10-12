@@ -66,8 +66,6 @@ void simulate(std::vector<op> program) {
         if (is_debug) std::cout << fmt::format("[DBG] IP={:03} OP={}, STACK=", ip, to_string(o)) << stack << std::endl;
         ip++;// increment by default; may get overridden
         switch (o.type) {
-            case op_type::NOP:
-                break;
             case op_type::PUSH_INT: {// Stack
                 push(stack, o.int_value);
                 if (is_debug) std::cout << fmt::format("[DBG] PUSH_INT {}", o.int_value) << std::endl;
@@ -229,14 +227,6 @@ void simulate(std::vector<op> program) {
                 }
                 if (is_debug) std::cout << fmt::format("[DBG] DO {} = {} -> {}", a, a != 0, o.jmp_addr) << std::endl;
                 break;
-            }
-            case op_type::MACRO: {
-                std::cerr << fmt::format("[ERR] macro op not resolved: {}", to_string(o)) << std::endl;
-                std::exit(1);
-            }
-            case op_type::INCLUDE: {
-                std::cerr << fmt::format("[ERR] include op not resolved: {}", to_string(o)) << std::endl;
-                std::exit(1);
             }
             case op_type::MEM: {// Memory
                 push(stack, static_cast<STACK_T>(STR_CAPACITY));
@@ -416,8 +406,6 @@ void compile(std::vector<op> program, std::string &output_path) {
         if (is_debug) std::cout << fmt::format("[DBG] ip={}, op={}", ip, to_string(o)) << std::endl;
         output << "addr_" << ip << ":" << std::endl;
         switch (o.type) {
-            case op_type::NOP:
-                break;
             case op_type::PUSH_INT: {// Stack
                 output << "    ;; -- push int --" << std::endl;
                 output << "    push " << o.int_value << std::endl;
@@ -589,14 +577,6 @@ void compile(std::vector<op> program, std::string &output_path) {
                 output << "    test rax, rax" << std::endl;
                 output << "    jz addr_" << o.jmp_addr << std::endl;
                 break;
-            }
-            case op_type::MACRO: {
-                std::cerr << fmt::format("[ERR] macro op not resolved: {}", to_string(o)) << std::endl;
-                std::exit(1);
-            }
-            case op_type::INCLUDE: {
-                std::cerr << fmt::format("[ERR] include op not resolved: {}", to_string(o)) << std::endl;
-                std::exit(1);
             }
             case op_type::MEM: {// Memory
                 output << "    ;; -- mem --" << std::endl;

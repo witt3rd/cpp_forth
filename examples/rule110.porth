@@ -21,7 +21,7 @@ mem N 2 - + 1 .
   mem 1 + ,       // mem[1]
   bor             // mem[0] | mem[1]
 
-  1 while dup N 2 - < do           // index
+  1 while dup N 2 - < do        // index
      swap 1 shl 7 band          // ((pattern << 1) & 7)
      over mem + 1 + , bor       // | (mem[index + 1]) = new_pattern
      2dup 110 swap shr 1 band   // ((110 >> new_pattern) & 1)

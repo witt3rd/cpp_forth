@@ -7,7 +7,6 @@
 #include <vector>
 
 enum class op_type {
-    NOP,
     // Stack
     PUSH_INT,
     PUSH_STR,
@@ -35,9 +34,6 @@ enum class op_type {
     // Loop
     WHILE,
     DO,
-    // Macros
-    MACRO,
-    INCLUDE,
     // Memory
     MEM,
     LOAD,
