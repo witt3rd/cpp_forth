@@ -8,6 +8,7 @@
 enum class token_type {
     WHITESPACE,
     IDENTIFIER,
+    CHAR_LITERAL,
     STRING_LITERAL,
     INTEGER_LITERAL,
     FLOAT_LITERAL,

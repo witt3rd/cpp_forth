@@ -1,25 +1,27 @@
 //-*- mode: Pascal; -*-
 
-mem 98 + 1 .
+macro N 100 end
 
-0 while dup 98 < do
-  0 while dup 100 < do
+mem N 2 - + 1 .
+
+0 while dup N 2 - < do
+  0 while dup N < do
     dup mem + , if
-      dup mem + 100 + 42 .
+      dup mem + N + '*' .
     else
-      dup mem + 100 + 32 .
+      dup mem + N + ' ' .
     end
     1 +
   end
-  mem + 100 + 10 .
-  101 mem 100 + 1 1 syscall3
+  mem + N + '\n' .
+  N 1 + mem N + 1 1 syscall3
 
   // pattern =
   mem     , 1 shl // mem[0] << 1
   mem 1 + ,       // mem[1]
   bor             // mem[0] | mem[1]
 
-  1 while dup 98 < do           // index
+  1 while dup N 2 - < do           // index
      swap 1 shl 7 band          // ((pattern << 1) & 7)
      over mem + 1 + , bor       // | (mem[index + 1]) = new_pattern
      2dup 110 swap shr 1 band   // ((110 >> new_pattern) & 1)

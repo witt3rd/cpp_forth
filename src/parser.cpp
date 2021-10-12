@@ -67,6 +67,10 @@ static op parse_token_as_op(token const &token) {
             break;
         case token_type::FLOAT_LITERAL:
             break;
+        case token_type::CHAR_LITERAL:
+            op.type      = op_type::PUSH_INT;
+            op.int_value = token.text[0];
+            break;
         case token_type::STRING_LITERAL:
             op.type      = op_type::PUSH_STR;
             op.str_value = token.text;
@@ -106,7 +110,7 @@ std::vector<op> parse(std::vector<token> &tokens) {
     size_t i{0};
     while (i < tokens.size()) {
         auto tok = tokens[i++];
-//        std::cout << fmt::format("[DBG] parsing token: {}", to_string(tok)) << std::endl;
+        //        std::cout << fmt::format("[DBG] parsing token: {}", to_string(tok)) << std::endl;
 
         // expand macros
         if (macros.contains(tok.text)) {
@@ -167,7 +171,7 @@ std::vector<op> parse(std::vector<token> &tokens) {
                 std::exit(1);
             }
             auto included_tokens = lex_file(file_name.text);
-//            std::cout << fmt::format("[DBG] including {} tokens from {}", included_tokens.size(), file_name.text) << std::endl;
+            //            std::cout << fmt::format("[DBG] including {} tokens from {}", included_tokens.size(), file_name.text) << std::endl;
             auto it = tokens.begin() + i;
             tokens.insert(it, included_tokens.begin(), included_tokens.end());
         } else if (op.type != op_type::NOP) {
@@ -180,9 +184,11 @@ std::vector<op> parse(std::vector<token> &tokens) {
 std::string to_string(op_type t) {
     return get_op_bimap().b(t);
 }
+
 op_type to_op_type(std::string const &s) {
     return get_op_bimap().a(s);
 }
+
 bool is_op(std::string const &s) {
     return get_op_bimap().has_b(s);
 }
