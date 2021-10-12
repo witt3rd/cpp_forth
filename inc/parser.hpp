@@ -15,7 +15,7 @@ enum class op_type {
     DROP,
     SWAP,
     OVER,
-    DUMP,
+    PRINT,
     // Arithmetic
     PLUS,
     MINUS,

@@ -1,26 +1,26 @@
 //-*- mode: Pascal; -*-
 
 5 while dup 0 > do
-  dup dump
+  dup print
   1 -
 end
 drop
 
-420 dump
+420 print
 
 5 0 while 2dup > do
-  dup dump
+  dup print
   1 +
 end
 drop
 drop
 
-69 dump
+69 print
 
 0 while dup 5 < do
-    42 dump dup dump
+    42 print dup print
     0 while dup 5 < do
-        69 dump dup dump
+        69 print dup print
         1 +
     end
     drop

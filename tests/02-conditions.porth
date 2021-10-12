@@ -1,58 +1,58 @@
 //-*- mode: Pascal; -*-
 
 // simple IF (true)
-34 35 + 69 = IF 69 DUMP end
+34 35 + 69 = IF 69 PRINT end
 
 // simple IF (false)
-34 35 + 420 = IF 69 DUMP end
+34 35 + 420 = IF 69 PRINT end
 
 // IF/ELSE (true)
-500 80 - 420 = iF 420 DUMP ELSE 0 DUMP enD
+500 80 - 420 = iF 420 PRINT ELSE 0 PRINT enD
 
 // IF/ELSE (false)
-500 80 - 60 = iF 420 DUMP ELSE 0 DUMP enD
+500 80 - 60 = iF 420 PRINT ELSE 0 PRINT enD
 
 // nested IF/ELSE
 1 1 + 2 = if
-  2 DUMP
+  2 PRINT
   2 2 + 4 = if
-    4 DUMP
+    4 PRINT
     4 4 + 8 = if
-      8 DUMP
+      8 PRINT
     else
-      -8 DUMP
+      -8 PRINT
     end
   else
-    -4 DUMP
+    -4 PRINT
   end
 else
-  -2 DUMP
+  -2 PRINT
 end
 
 // GT (true)
 4 3 > if
-  1 DUMP
+  1 PRINT
 else
-  0 DUMP
+  0 PRINT
 end
 
 // LT (true)
 3 4 < if
-  1 DUMP
+  1 PRINT
 else
-  0 DUMP
+  0 PRINT
 end
 
 // LT (false)
 4 3 < if
-  1 DUMP
+  1 PRINT
 else
-  0 DUMP
+  0 PRINT
 end
 
 // GT (false)
 3 4 > if
-  1 DUMP
+  1 PRINT
 else
-  0 DUMP
+  0 PRINT
 end

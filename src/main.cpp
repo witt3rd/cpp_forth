@@ -127,10 +127,10 @@ void simulate(std::vector<op> program) {
                 if (is_debug) std::cout << fmt::format("[DBG] OVER {} {}", a, b) << std::endl;
                 break;
             }
-            case op_type::DUMP: {
+            case op_type::PRINT: {
                 auto a = pop(stack);
                 std::cout << a << std::endl;
-                if (is_debug) std::cout << fmt::format("[DBG] DUMP {}", a) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] PRINT {}", a) << std::endl;
                 break;
             }
             case op_type::PLUS: {// Arithmetic
@@ -367,7 +367,7 @@ void compile(std::vector<op> program, std::string &output_path) {
     std::ofstream output(output_path);
     output << "segment .text" << std::endl;
 
-    output << "dump:" << std::endl;
+    output << "print:" << std::endl;
     output << "        sub     rsp, 40" << std::endl;
     output << "        lea     rsi, [rsp + 31]" << std::endl;
     output << "        mov     byte [rsp + 31], 10" << std::endl;
@@ -460,10 +460,10 @@ void compile(std::vector<op> program, std::string &output_path) {
                 output << "    push rbx" << std::endl;
                 break;
             }
-            case op_type::DUMP: {
-                output << "    ;; -- dump --" << std::endl;
+            case op_type::PRINT: {
+                output << "    ;; -- print --" << std::endl;
                 output << "    pop rdi" << std::endl;
-                output << "    call dump" << std::endl;
+                output << "    call print" << std::endl;
                 break;
             }
             case op_type::PLUS: {// Arithmetic

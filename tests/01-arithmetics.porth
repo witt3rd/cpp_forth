@@ -1,8 +1,8 @@
 //-*- mode: Pascal; -*-
 
-34 35 + dump // this is a comment
-500 80 - dump
-10 20 + dump
-10 20 = dump
-4 3 > dump
-3 4 < dump
+34 35 + print // this is a comment
+500 80 - print
+10 20 + print
+10 20 = print
+4 3 > print
+3 4 < print

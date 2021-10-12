@@ -1,22 +1,22 @@
 //-*- mode: Pascal; -*-
 
-// dump
+// print
 420
 69
-dump
-dump
+print
+print
 
 // swap
 420
 69
 swap
-dump
-dump
+print
+print
 
 // over
 420
 69
 over
-dump
-dump
-dump
+print
+print
+print

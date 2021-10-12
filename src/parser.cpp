@@ -13,7 +13,7 @@ bimap<op_type, std::string> const &get_op_bimap() {
             {op_type::DROP, "DROP"},
             {op_type::SWAP, "SWAP"},
             {op_type::OVER, "OVER"},
-            {op_type::DUMP, "DUMP"},
+            {op_type::PRINT, "PRINT"},
             // Arithmetic
             {op_type::PLUS, "+"},
             {op_type::MINUS, "-"},
