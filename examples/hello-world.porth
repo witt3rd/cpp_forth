@@ -1,6 +1,6 @@
 // -*- mode: opascal -*-
 
-include "examples/io.porth"
+include "std/io.porth"
 
 macro msg "Hello, world\n" end
 
