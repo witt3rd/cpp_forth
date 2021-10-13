@@ -95,16 +95,6 @@ void simulate(std::vector<op> program) {
                 if (is_debug) std::cout << fmt::format("[DBG] DUP {}", a) << std::endl;
                 break;
             }
-            case op_type::DUP2: {
-                auto a = pop(stack);
-                auto b = pop(stack);
-                push(stack, b);
-                push(stack, a);
-                push(stack, b);
-                push(stack, a);
-                if (is_debug) std::cout << fmt::format("[DBG] 2DUP {} {}", a, b) << std::endl;
-                break;
-            }
             case op_type::DROP: {
                 auto a = pop(stack);
                 if (is_debug) std::cout << fmt::format("[DBG] DROP {} ", a) << std::endl;
@@ -441,16 +431,6 @@ void compile(std::vector<op> program, std::string &output_path) {
                 output << "    ;; -- dup --" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    push rax" << std::endl;
-                output << "    push rax" << std::endl;
-                break;
-            }
-            case op_type::DUP2: {
-                output << "    ;; -- dup2 --" << std::endl;
-                output << "    pop rax" << std::endl;
-                output << "    pop rbx" << std::endl;
-                output << "    push rbx" << std::endl;
-                output << "    push rax" << std::endl;
-                output << "    push rbx" << std::endl;
                 output << "    push rax" << std::endl;
                 break;
             }

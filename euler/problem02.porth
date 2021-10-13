@@ -1,0 +1,9 @@
+include "std/std.porth"
+
+mem 123456789 store64
+mem load64 print
+
+//1 2 while over 100 < do
+//  over print
+//  swap over +
+//end

@@ -9,7 +9,6 @@ bimap<op_type, std::string> const &get_op_bimap() {
             {op_type::PUSH_INT, "PUSH_INT"},
             {op_type::PUSH_STR, "PUSH_STR"},
             {op_type::DUP, "DUP"},
-            {op_type::DUP2, "2DUP"},
             {op_type::DROP, "DROP"},
             {op_type::SWAP, "SWAP"},
             {op_type::OVER, "OVER"},

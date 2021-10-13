@@ -11,7 +11,6 @@ enum class op_type {
     PUSH_INT,
     PUSH_STR,
     DUP,
-    DUP2,
     DROP,
     SWAP,
     OVER,
