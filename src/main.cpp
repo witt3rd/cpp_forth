@@ -147,6 +147,22 @@ void simulate(std::vector<op> program) {
                 if (is_debug) std::cout << fmt::format("[DBG] {} - {} = {}", a, b, a - b) << std::endl;
                 break;
             }
+            case op_type::MUL: {
+                auto b = pop(stack);
+                auto a = pop(stack);
+                push(stack, a * b);
+                if (is_debug) std::cout << fmt::format("[DBG] {} * {} = {}", a, b, a * b) << std::endl;
+                break;
+            }
+            case op_type::DIVMOD: {
+                auto b = pop(stack);
+                auto a = pop(stack);
+                push(stack, a / b);
+                push(stack, a%b);
+                if (is_debug) std::cout << fmt::format("[DBG] {} / {} = {}", a, b, a / b) << std::endl;
+                if (is_debug) std::cout << fmt::format("[DBG] {} % {} = {}", a, b, a % b) << std::endl;
+                break;
+            }
             case op_type::EQUAL: {
                 auto b = pop(stack);
                 auto a = pop(stack);
@@ -241,9 +257,9 @@ void simulate(std::vector<op> program) {
                 break;
             }
             case op_type::STORE: {
-                auto byte = pop(stack);
+                auto byte = (uint8_t)pop(stack);
                 auto addr = pop(stack);
-                mem[addr] = byte & 0xff;
+                mem[addr] = (ADDR_T)(byte & 0xff);
                 if (is_debug) std::cout << fmt::format("[DBG] STORE MEM[{}] <- {}", addr, byte & 0xff) << std::endl;
                 break;
             }
@@ -480,6 +496,24 @@ void compile(std::vector<op> program, std::string &output_path) {
                 output << "    pop rax" << std::endl;
                 output << "    sub rax, rbx" << std::endl;
                 output << "    push rax" << std::endl;
+                break;
+            }
+            case op_type::MUL: {
+                output << "    ;; -- mul --" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    pop rbx" << std::endl;
+                output << "    mul rbx" << std::endl;
+                output << "    push rax" << std::endl;
+                break;
+            }
+            case op_type::DIVMOD: {
+                output << "    ;; -- div --" << std::endl;
+                output << "    xor rdx, rdx" << std::endl;
+                output << "    pop rbx" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    div rbx" << std::endl;
+                output << "    push rax" << std::endl;
+                output << "    push rdx" << std::endl;
                 break;
             }
             case op_type::EQUAL: {
@@ -751,7 +785,8 @@ std::vector<op> &cross_reference(std::vector<op> &program) {
 
 std::vector<op> load_program_from_file(std::string const &file_path) {
     auto tokens{lex_file(file_path)};
-    auto program{parse(tokens)};
+    std::map<std::string, macro> macros{};
+    auto program{parse(tokens, macros)};
     return cross_reference(program);
 }
 

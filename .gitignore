@@ -4,6 +4,8 @@ build/
 cmake-build-debug
 compile_commands.json
 .clangd/
+euler/*
+!euler/*.[fp]orth
 examples/*
 !examples/*.[fp]orth
 tests/*

@@ -28,6 +28,10 @@ static bimap<token_type, std::string> const &get_token_bimap() {
 
 static void end_token(std::vector<token> &tokens, token &token) {
     if (!(token.type == token_type::WHITESPACE || token.type == token_type::COMMENT)) {
+        if (token.type == token_type::SLASH) {
+            token.type = token_type::IDENTIFIER;
+            token.text = "/";
+        }
         tokens.push_back(token);
     }
     token.type = token_type::WHITESPACE;
@@ -154,6 +158,10 @@ static std::vector<token> lex_stream(std::string const &file_path, std::istream 
                     cur_token.type   = token_type::MINUS;
                     cur_token.column = column;
                     break;
+                case '*':
+                    cur_token.type   = token_type::STAR;
+                    cur_token.column = column;
+                    break;
                 case '<':
                     cur_token.type   = token_type::LESS_THAN;
                     cur_token.column = column;
@@ -171,7 +179,6 @@ static std::vector<token> lex_stream(std::string const &file_path, std::istream 
                 case '\r':
                     end_token(tokens, cur_token);
                     break;
-
                 case '\n':
                     end_token(tokens, cur_token);
                     cur_token.line++;

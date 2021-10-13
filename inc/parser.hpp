@@ -19,6 +19,8 @@ enum class op_type {
     // Arithmetic
     PLUS,
     MINUS,
+    MUL,
+    DIVMOD,
     EQUAL,
     GT,
     LT,
@@ -58,14 +60,15 @@ struct op {
     };
 };
 
-std::vector<op> parse(std::vector<token> &tokens);
+struct macro {
+    token macro_token;
+    std::vector<token> body_tokens;
+};
+
+std::vector<op> parse(std::vector<token> &tokens, std::map<std::string, macro> &macros);
 
 std::string to_string(op_type t);
 op_type to_op_type(std::string const &s);
 bool is_op(std::string const &s);
 std::string to_string(op const &o);
 
-struct macro {
-    token macro_token;
-    std::vector<token> body_tokens;
-};

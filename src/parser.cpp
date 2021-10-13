@@ -17,6 +17,8 @@ bimap<op_type, std::string> const &get_op_bimap() {
             // Arithmetic
             {op_type::PLUS, "+"},
             {op_type::MINUS, "-"},
+            {op_type::MUL, "*"},
+            {op_type::DIVMOD, "DIVMOD"},
             {op_type::EQUAL, "="},
             {op_type::GT, ">"},
             {op_type::LT, "<"},
@@ -72,6 +74,8 @@ static op parse_token_as_op(token const &token) {
             return op{.type = op_type::PLUS, .token = token};
         case token_type::MINUS:
             return op{.type = op_type::MINUS, .token = token};
+        case token_type::STAR:
+            return op{.type = op_type::MUL, .token = token};
         case token_type::LESS_THAN:
             return op{.type = op_type::LT, .token = token};
         case token_type::GREATER_THAN:
@@ -84,20 +88,18 @@ static op parse_token_as_op(token const &token) {
     }
 }
 
-std::vector<op> parse(std::vector<token> &tokens) {
+std::vector<op> parse(std::vector<token> &tokens, std::map<std::string, macro> &macros) {
     std::vector<op> program;
-    std::map<std::string, macro> macros;
     size_t i{0};
     while (i < tokens.size()) {
         auto tok = tokens[i++];
-        //        std::cout << fmt::format("[DBG] parsing token: {}", to_string(tok)) << std::endl;
+        //std::cout << fmt::format("[DBG] parsing token: {}", to_string(tok)) << std::endl;
 
         // expand macros
         if (macros.contains(tok.text)) {
-            auto m = macros[tok.text];
-            for (auto const &t : m.body_tokens) {
-                program.push_back(parse_token_as_op(t));
-            }
+            auto m           = macros[tok.text];
+            auto sub_program = parse(m.body_tokens, macros);
+            program.insert(program.end(), sub_program.begin(), sub_program.end());
             continue;
         }
 
@@ -150,7 +152,7 @@ std::vector<op> parse(std::vector<token> &tokens) {
             }
             auto included_tokens = lex_file(file_name.text);
             //            std::cout << fmt::format("[DBG] including {} tokens from {}", included_tokens.size(), file_name.text) << std::endl;
-            auto it = tokens.begin() + (long)i;
+            auto it = tokens.begin() + (long) i;
             tokens.insert(it, included_tokens.begin(), included_tokens.end());
         } else {
             auto op = parse_token_as_op(tok);
