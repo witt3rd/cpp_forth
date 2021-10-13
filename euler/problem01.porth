@@ -1,19 +1,11 @@
 include "std/std.porth"
 
-//5 2 divmod print print
-//5 2 divmod drop print
-//5 2 divmod swap drop print
-//5 2 / print
-//5 2 % print
-//5 2 mod print
-//5 2 div print
-
-3 while dup 100 < do
+0 3 while dup 1000 < do
   dup 3 % 0 =
   over 5 % 0 =
   bor if
-    dup print
+    swap over + swap
   end
   1 +
-end
-drop
+end drop
+print

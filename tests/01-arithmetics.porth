@@ -6,3 +6,16 @@
 10 20 = print
 4 3 > print
 3 4 < print
+
+macro / divmod drop end
+macro % divmod swap drop end
+macro mod % end
+macro div / end
+
+5 2 divmod print print
+5 2 divmod drop print
+5 2 divmod swap drop print
+5 2 / print
+5 2 % print
+5 2 mod print
+5 2 div print
