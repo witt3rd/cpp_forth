@@ -101,8 +101,8 @@ std::vector<op> parse(std::vector<token> &tokens, std::map<std::string, macro> &
         //std::cout << fmt::format("[DBG] parsing token: {}", to_string(tok)) << std::endl;
 
         // expand macros
-        if (macros.contains(tok.text)) {
-            auto m           = macros[tok.text];
+        if (auto it = macros.find(tok.text); it != macros.end()) {
+            auto m           = it->second;
             auto sub_program = parse(m.body_tokens, macros);
             program.insert(program.end(), sub_program.begin(), sub_program.end());
             continue;
