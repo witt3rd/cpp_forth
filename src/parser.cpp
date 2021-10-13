@@ -6,44 +6,46 @@
 bimap<op_type, std::string> const &get_op_bimap() {
     static bimap<op_type, std::string> const op_bimap{
             // Stack
-            {op_type::PUSH_INT, "PUSH_INT"},
-            {op_type::PUSH_STR, "PUSH_STR"},
-            {op_type::DUP, "DUP"},
-            {op_type::DROP, "DROP"},
-            {op_type::SWAP, "SWAP"},
-            {op_type::OVER, "OVER"},
-            {op_type::PRINT, "PRINT"},
+            {op_type::PUSH_INT, "push_int"},
+            {op_type::PUSH_STR, "push_str"},
+            {op_type::DUP, "dup"},
+            {op_type::DROP, "drop"},
+            {op_type::SWAP, "swap"},
+            {op_type::OVER, "over"},
+            {op_type::PRINT, "print"},
             // Arithmetic
             {op_type::PLUS, "+"},
             {op_type::MINUS, "-"},
             {op_type::MUL, "*"},
-            {op_type::DIVMOD, "DIVMOD"},
+            {op_type::DIVMOD, "divmod"},
             {op_type::EQUAL, "="},
-            {op_type::GT, ">"},
             {op_type::LT, "<"},
+            {op_type::LTE, "<="},
+            {op_type::GT, ">"},
+            {op_type::GTE, ">="},
             // Bitwise
-            {op_type::SHR, "SHR"},
-            {op_type::SHL, "SHL"},
-            {op_type::BOR, "BOR"},
-            {op_type::BAND, "BAND"},
+            {op_type::SHR, "shr"},
+            {op_type::SHL, "shl"},
+            {op_type::BOR, "bor"},
+            {op_type::BAND, "band"},
             // Conditional
-            {op_type::IF, "IF"},
-            {op_type::ELSE, "ELSE"},
-            {op_type::END, "END"},
+            {op_type::IF, "if"},
+            {op_type::ELSE, "else"},
+            {op_type::END, "end"},
             // Loop
-            {op_type::WHILE, "WHILE"},
-            {op_type::DO, "DO"},
+            {op_type::WHILE, "while"},
+            {op_type::DO, "do"},
             // Memory
-            {op_type::MEM, "MEM"},
+            {op_type::MEM, "mem"},
             {op_type::LOAD, ","},
             {op_type::STORE, "."},
             // System
-            {op_type::SYSCALL1, "SYSCALL1"},
-            {op_type::SYSCALL2, "SYSCALL2"},
-            {op_type::SYSCALL3, "SYSCALL3"},
-            {op_type::SYSCALL4, "SYSCALL4"},
-            {op_type::SYSCALL5, "SYSCALL5"},
-            {op_type::SYSCALL6, "SYSCALL6"}};
+            {op_type::SYSCALL1, "syscall1"},
+            {op_type::SYSCALL2, "syscall2"},
+            {op_type::SYSCALL3, "syscall3"},
+            {op_type::SYSCALL4, "syscall4"},
+            {op_type::SYSCALL5, "syscall5"},
+            {op_type::SYSCALL6, "syscall6"}};
     return op_bimap;
 }
 
@@ -75,10 +77,14 @@ static op parse_token_as_op(token const &token) {
             return op{.type = op_type::MINUS, .token = token};
         case token_type::STAR:
             return op{.type = op_type::MUL, .token = token};
-        case token_type::LESS_THAN:
+        case token_type::LT:
             return op{.type = op_type::LT, .token = token};
-        case token_type::GREATER_THAN:
+        case token_type::LTE:
+            return op{.type = op_type::LTE, .token = token};
+        case token_type::GT:
             return op{.type = op_type::GT, .token = token};
+        case token_type::GTE:
+            return op{.type = op_type::GTE, .token = token};
         case token_type::EQUAL:
             return op{.type = op_type::EQUAL, .token = token};
         default:
@@ -102,7 +108,7 @@ std::vector<op> parse(std::vector<token> &tokens, std::map<std::string, macro> &
             continue;
         }
 
-        if (tok.text == "MACRO") {
+        if (tok.text == "macro") {
             if (i >= tokens.size()) {
                 std::cerr << fmt::format("[ERR] incomplete macro definition: {}", to_string(tok)) << std::endl;
                 std::exit(1);
@@ -123,8 +129,8 @@ std::vector<op> parse(std::vector<token> &tokens, std::map<std::string, macro> &
             while (i < tokens.size()) {
                 tok = tokens[i++];
                 if (tok.type == token_type::IDENTIFIER) {
-                    if (tok.text == "IF" || tok.text == "WHILE") blocks++;
-                    if (tok.text == "END") {
+                    if (tok.text == "if" || tok.text == "while") blocks++;
+                    if (tok.text == "end") {
                         if (blocks) blocks--;
                         else {
                             complete = true;
@@ -139,7 +145,7 @@ std::vector<op> parse(std::vector<token> &tokens, std::map<std::string, macro> &
                 std::exit(1);
             }
             macros[name.text] = m;
-        } else if (tok.text == "INCLUDE") {
+        } else if (tok.text == "include") {
             if (i >= tokens.size()) {
                 std::cerr << fmt::format("[ERR] incomplete include definition: {}", to_string(tok)) << std::endl;
                 std::exit(1);

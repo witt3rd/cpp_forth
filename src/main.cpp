@@ -160,6 +160,20 @@ void simulate(std::vector<op> program) {
                 if (is_debug) std::cout << fmt::format("[DBG] {} == {} = {}", a, b, a == b) << std::endl;
                 break;
             }
+            case op_type::LT: {
+                auto b = pop(stack);
+                auto a = pop(stack);
+                push(stack, static_cast<STACK_T>(a < b));
+                if (is_debug) std::cout << fmt::format("[DBG] {} < {} = {}", a, b, a < b) << std::endl;
+                break;
+            }
+            case op_type::LTE: {
+                auto b = pop(stack);
+                auto a = pop(stack);
+                push(stack, static_cast<STACK_T>(a <= b));
+                if (is_debug) std::cout << fmt::format("[DBG] {} <= {} = {}", a, b, a <= b) << std::endl;
+                break;
+            }
             case op_type::GT: {
                 auto b = pop(stack);
                 auto a = pop(stack);
@@ -167,11 +181,11 @@ void simulate(std::vector<op> program) {
                 if (is_debug) std::cout << fmt::format("[DBG] {} > {} = {}", a, b, a > b) << std::endl;
                 break;
             }
-            case op_type::LT: {
+            case op_type::GTE: {
                 auto b = pop(stack);
                 auto a = pop(stack);
-                push(stack, static_cast<STACK_T>(a < b));
-                if (is_debug) std::cout << fmt::format("[DBG] {} < {} = {}", a, b, a < b) << std::endl;
+                push(stack, static_cast<STACK_T>(a >= b));
+                if (is_debug) std::cout << fmt::format("[DBG] {} >= {} = {}", a, b, a >= b) << std::endl;
                 break;
             }
             case op_type::SHR: {// Bitwise
@@ -361,6 +375,9 @@ void simulate(std::vector<op> program) {
                 }
                 break;
             }
+            default:
+                std::cerr << fmt::format("[ERR] unhandled op: {}", to_string(o)) << std::endl;
+                std::exit(1);
         }
     }
 
@@ -507,6 +524,28 @@ void compile(std::vector<op> program, std::string &output_path) {
                 output << "    push rcx" << std::endl;
                 break;
             }
+            case op_type::LT: {
+                output << "    ;; -- lt --" << std::endl;
+                output << "    mov rcx, 0" << std::endl;
+                output << "    mov rdx, 1" << std::endl;
+                output << "    pop rbx" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    cmp rax, rbx" << std::endl;
+                output << "    cmovl rcx, rdx" << std::endl;
+                output << "    push rcx" << std::endl;
+                break;
+            }
+            case op_type::LTE: {
+                output << "    ;; -- lte --" << std::endl;
+                output << "    mov rcx, 0" << std::endl;
+                output << "    mov rdx, 1" << std::endl;
+                output << "    pop rbx" << std::endl;
+                output << "    pop rax" << std::endl;
+                output << "    cmp rax, rbx" << std::endl;
+                output << "    cmovle rcx, rdx" << std::endl;
+                output << "    push rcx" << std::endl;
+                break;
+            }
             case op_type::GT: {
                 output << "    ;; -- gt --" << std::endl;
                 output << "    mov rcx, 0" << std::endl;
@@ -518,14 +557,14 @@ void compile(std::vector<op> program, std::string &output_path) {
                 output << "    push rcx" << std::endl;
                 break;
             }
-            case op_type::LT: {
-                output << "    ;; -- lt --" << std::endl;
+            case op_type::GTE: {
+                output << "    ;; -- gte --" << std::endl;
                 output << "    mov rcx, 0" << std::endl;
                 output << "    mov rdx, 1" << std::endl;
                 output << "    pop rbx" << std::endl;
                 output << "    pop rax" << std::endl;
                 output << "    cmp rax, rbx" << std::endl;
-                output << "    cmovl rcx, rdx" << std::endl;
+                output << "    cmovge rcx, rdx" << std::endl;
                 output << "    push rcx" << std::endl;
                 break;
             }
@@ -669,6 +708,9 @@ void compile(std::vector<op> program, std::string &output_path) {
                 output << "    syscall" << std::endl;
                 break;
             }
+            default:
+                std::cerr << fmt::format("[ERR] unhandled op: {}", to_string(o)) << std::endl;
+                std::exit(1);
         }
         ip++;
     }

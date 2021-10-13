@@ -21,8 +21,10 @@ enum class op_type {
     MUL,
     DIVMOD,
     EQUAL,
-    GT,
     LT,
+    LTE,
+    GT,
+    GTE,
     // Bitwise
     SHR,
     SHL,

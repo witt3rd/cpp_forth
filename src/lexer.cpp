@@ -15,8 +15,10 @@ static bimap<token_type, std::string> const &get_token_bimap() {
             {token_type::COMMA, "COMMA"},
             {token_type::PLUS, "PLUS"},
             {token_type::MINUS, "MINUS"},
-            {token_type::LESS_THAN, "LESS_THAN"},
-            {token_type::GREATER_THAN, "GREATER_THAN"},
+            {token_type::LT, "LT"},
+            {token_type::LTE, "LTE"},
+            {token_type::GT, "GT"},
+            {token_type::GTE, "GTE"},
             {token_type::EQUAL, "EQUAL"},
             {token_type::SLASH, "SLASH"},
             {token_type::BACKSLASH, "BACKSLASH"},
@@ -30,7 +32,6 @@ static void end_token(std::vector<token> &tokens, token &token) {
     if (!(token.type == token_type::WHITESPACE || token.type == token_type::COMMENT)) {
         if (token.type == token_type::SLASH) {
             token.type = token_type::IDENTIFIER;
-            token.text = "/";
         }
         tokens.push_back(token);
     }
@@ -143,36 +144,53 @@ static std::vector<token> lex_stream(std::string const &file_path, std::istream 
                         cur_token.text += ch;
                     } else {
                         cur_token.type   = token_type::DOT;
+                        cur_token.text   = ch;
                         cur_token.column = column;
                     }
                     break;
                 case ',':
                     cur_token.type   = token_type::COMMA;
+                    cur_token.text   = ch;
                     cur_token.column = column;
                     break;
                 case '+':
                     cur_token.type   = token_type::PLUS;
+                    cur_token.text   = ch;
                     cur_token.column = column;
                     break;
                 case '-':
                     cur_token.type   = token_type::MINUS;
+                    cur_token.text   = ch;
                     cur_token.column = column;
                     break;
                 case '*':
                     cur_token.type   = token_type::STAR;
+                    cur_token.text   = ch;
                     cur_token.column = column;
                     break;
                 case '<':
-                    cur_token.type   = token_type::LESS_THAN;
+                    cur_token.type   = token_type::LT;
+                    cur_token.text   = ch;
                     cur_token.column = column;
                     break;
                 case '>':
-                    cur_token.type   = token_type::GREATER_THAN;
+                    cur_token.type   = token_type::GT;
+                    cur_token.text   = ch;
                     cur_token.column = column;
                     break;
                 case '=':
-                    cur_token.type   = token_type::EQUAL;
-                    cur_token.column = column;
+                    if (cur_token.type == token_type::LT) {
+                        cur_token.type = token_type::LTE;
+                        cur_token.text = "<=";
+                    } else if (cur_token.type == token_type::GT) {
+                        cur_token.type = token_type::GTE;
+                        cur_token.text = ">=";
+                    } else {
+                        end_token(tokens, cur_token);
+                        cur_token.type   = token_type::EQUAL;
+                        cur_token.text   = ch;
+                        cur_token.column = column;
+                    }
                     break;
                 case ' ':
                 case '\t':
@@ -194,6 +212,7 @@ static std::vector<token> lex_stream(std::string const &file_path, std::istream 
                         end_token(tokens, cur_token);
                         cur_token.type = token_type::SLASH;
                     }
+                    cur_token.text   = ch;
                     cur_token.column = column;
                     break;
 
@@ -203,7 +222,7 @@ static std::vector<token> lex_stream(std::string const &file_path, std::istream 
                         cur_token.type = token_type::IDENTIFIER;
                         cur_token.column = column;
                     }
-                    cur_token.text += (char) toupper(ch);
+                    cur_token.text += (char) tolower(ch);
                     break;
             }
         }
@@ -214,7 +233,7 @@ static std::vector<token> lex_stream(std::string const &file_path, std::istream 
 }
 
 std::vector<token> lex_file(std::string const &file_path) {
-    std::cout << fmt::format("[INF] lexing file: {}", file_path) << std::endl;
+    //std::cout << fmt::format("[INF] lexing file: {}", file_path) << std::endl;
 
     std::ifstream f{file_path};
     if (!f.is_open()) {
