@@ -148,7 +148,7 @@ void simulate(std::vector<op> program) {
                 auto b = pop(stack);
                 auto a = pop(stack);
                 push(stack, a / b);
-                push(stack, a%b);
+                push(stack, a % b);
                 if (is_debug) std::cout << fmt::format("[DBG] {} / {} = {}", a, b, a / b) << std::endl;
                 if (is_debug) std::cout << fmt::format("[DBG] {} % {} = {}", a, b, a % b) << std::endl;
                 break;
@@ -261,9 +261,9 @@ void simulate(std::vector<op> program) {
                 break;
             }
             case op_type::STORE: {
-                auto byte = (uint8_t)pop(stack);
+                auto byte = (uint8_t) pop(stack);
                 auto addr = pop(stack);
-                mem[addr] = (ADDR_T)(byte & 0xff);
+                mem[addr] = (ADDR_T) (byte & 0xff);
                 if (is_debug) std::cout << fmt::format("[DBG] STORE MEM[{}] <- {}", addr, byte & 0xff) << std::endl;
                 break;
             }
